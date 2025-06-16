@@ -1,0 +1,78 @@
+import os
+from random import uniform
+from time import sleep
+
+import config
+from db import create_local_sqlite_db, get_video_db_data
+from video import get_youtube_data, process_video
+
+if __name__ == "__main__":
+    sqlite_db_path = config.SQLITE_DB_PATH
+
+    # Check prevents re-exporting from MySQL on every run.
+    if not os.path.exists(sqlite_db_path):
+        print(f"Local SQLite database not found at {sqlite_db_path}.")
+        print("Creating it now from the MySQL source...")
+        create_local_sqlite_db()
+        print("Local SQLite database created successfully.")
+    else:
+        print(f"Found local SQLite database at {sqlite_db_path}.")
+
+    output_directory = "videos"
+    os.makedirs(output_directory, exist_ok=True)
+
+    print("Finding new videos to process...")
+
+    # Get all video IDs from the source database
+    all_db_videos = get_video_db_data(sqlite_db_path)
+    db_video_ids = {v["video_id"] for v in all_db_videos}
+
+    # Scan the output directory to see what we already have
+    processed_video_ids = set()
+    for root, _, files in os.walk(output_directory):
+        for file in files:
+            if file.endswith(".json"):
+                video_id = file.split(".json")[0]
+                processed_video_ids.add(video_id)
+
+    # Find the difference and convert it to a tuple
+    new_video_ids = tuple(db_video_ids.difference(processed_video_ids))
+
+    if not new_video_ids:
+        print("No new videos to process. All up to date.")
+    else:
+        print(f"Found {len(new_video_ids)} new videos to process.")
+
+        # Fetch metadata from the DB for the new videos
+        new_video_metadata = get_video_db_data(
+            sqlite_db_path, video_ids=new_video_ids
+        )
+
+        # Enrich with data from the YouTube API
+        youtube_api_data = get_youtube_data(new_video_ids)
+
+        # Process and save
+        for video in new_video_metadata:
+            video_id = video["video_id"]
+            if video_id in youtube_api_data:
+                # Merge the DB data with the YouTube API data
+                video.update(youtube_api_data[video_id])
+
+                # Rate limiting
+                sleep_duration = uniform(1, 3)  # Wait 1 to 3 seconds
+                print(
+                    f"   ...waiting for {sleep_duration:.2f} seconds to avoid"
+                    " rate-limiting."
+                )
+                sleep(sleep_duration)
+
+                # Process video
+                print(f"Processing video: {video_id}")
+                process_video(video, output_directory)
+            else:
+                print(
+                    "Warning: Could not find YouTube API data for new video"
+                    f" ID: {video_id}"
+                )
+
+    print("Processing complete.")
