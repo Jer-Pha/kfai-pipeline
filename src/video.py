@@ -64,12 +64,14 @@ def process_video(video, output_dir):
     output_path = path.join(subdir_path, f"{video_id}.json")
 
     if path.exists(output_path):
-        return  # Video already processed
+        return False  # Video already processed
 
     # Fetch the raw transcript data
     raw_transcript_data = get_raw_transcript_data(video_id)
 
-    if raw_transcript_data:
+    if raw_transcript_data == video_id:
+        return True  # Skip next time
+    elif raw_transcript_data:
         # Chunk it using the new, improved method
         video["transcript_chunks"] = chunk_transcript_with_overlap(
             raw_transcript_data
@@ -78,11 +80,13 @@ def process_video(video, output_dir):
             print(
                 f"Warning: Transcript for {video_id} was empty after chunking."
             )
-            return  # Skip if chunking resulted in nothing
+            return False  # Skip if chunking resulted in nothing
     else:
-        return  # Transcript was not fetched
+        return False
 
     # ... (code to save the JSON file is perfect) ...
     # I changed the key to "transcript_chunks" to be more descriptive
     with open(output_path, "w", encoding="utf-8") as outfile:
         dump(video, outfile, indent=4)
+
+    return False
