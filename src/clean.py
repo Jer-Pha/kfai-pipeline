@@ -13,7 +13,8 @@ os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
 # --- Set up the Gemini Model ---
-model = genai.GenerativeModel("gemini-2.0-flash")
+# model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-2.5-flash-preview-05-20")
 
 generation_config = genai.GenerationConfig(
     temperature=0.0,  # Make the output deterministic
@@ -29,19 +30,20 @@ safety_settings = [
 
 # --- The Master Prompt ---
 SYSTEM_PROMPT = """
-You are an expert transcription editor for a YouTube channel archive.
-Your task is to correct spelling and phonetic transcription errors in a given JSON object containing a video's transcript.
+You are an expert transcription editor for the YouTube channels 'Kinda Funny' and 'Kinda Funny Games'.
+Your task is to correct spelling and phonetic transcription errors in a given JSON object containing a video's transcript from this archive.
 
 You will be given a JSON object with video metadata and a list of transcript chunks.
 Your goal is to return a new JSON object with the exact same structure, but with the 'text' fields in the 'transcript_chunks' corrected.
 
 Follow these rules precisely:
 1.  Use the top-level metadata (show_name, hosts, title) as the ground truth for spelling names of people and shows.
-2.  Correct common phonetic mistakes (e.g., "follow-the-leader" should be "Follow the Liter").
-3.  Correct obvious spelling errors.
-4.  Do NOT change the meaning, grammar, slang, or original phrasing. Only correct clear errors.
-5.  If a word or phrase is ambiguous, leave it as is. It is better to leave a small error than to introduce a new one.
-6.  The output MUST be a valid JSON object matching the input structure. Do not add any conversational text before or after the JSON.
+2.  Use your knowledge of the 'Kinda Funny' and 'Kinda Funny Games' channels to correct common names (e.g., Greg Miller, Colin Moriarty, Nick Scarpino, Tim Gettys, Portillo) and show titles (e.g., Gamescast, The GameOverGreggy Show, PS I Love You XOXO).
+3.  Correct common phonetic mistakes (e.g., "game over gregy" should be "GameOverGreggy").
+4.  Correct obvious spelling errors.
+5.  Do NOT change the meaning, grammar, slang, or original phrasing. Only correct clear errors.
+6.  If a word or phrase is ambiguous, leave it as is. It is better to leave a small error than to introduce a new one.
+7.  The output MUST be a valid JSON object matching the input structure. Do not add any conversational text before or after the JSON.
 """
 
 
@@ -51,7 +53,7 @@ def fix_broken_json(broken_text):
     try:
         # A simpler, more direct prompt
         fix_prompt = f"""
-        The following text is not valid JSON, likely due to unescaped quotes within string values.
+        The following text is not valid JSON, likely due to unescaped quotes within string values or unnecessary trailing commas.
         Please fix the JSON syntax and return ONLY the corrected, valid JSON object.
 
         BROKEN JSON:
@@ -82,15 +84,11 @@ def clean_video_transcript(video_data):
             safety_settings=safety_settings,
         )
 
-        # --- MODIFIED: Robust JSON Parsing ---
         try:
-            # First, try to parse the response directly
             cleaned_data = json.loads(response.text)
             return cleaned_data
         except json.JSONDecodeError:
-            # If it fails, it's likely malformed. Try to fix it.
             print("  -> Received malformed JSON. Initiating fallback.")
-            # Sometimes the response includes markdown backticks. Let's strip them.
             cleaned_text = (
                 response.text.strip().lstrip("```json").rstrip("```")
             )
@@ -124,22 +122,19 @@ if __name__ == "__main__":
                 # Construct the full path for the raw source file
                 raw_path = os.path.join(root, filename)
 
-                # --- MODIFIED: Construct the corresponding path for the cleaned destination file ---
-                # This replaces the base raw directory with the cleaned one, preserving the subdirectories
                 relative_path = os.path.relpath(raw_path, RAW_JSON_DIR)
                 cleaned_path = os.path.join(CLEANED_JSON_DIR, relative_path)
 
-                # Get the directory part of the cleaned path
-                cleaned_dir = os.path.dirname(cleaned_path)
+                # Check if the cleaned version already exists
+                if os.path.exists(cleaned_path):
+                    continue
 
                 print(
                     f"--- Processing file {processed_count}: {relative_path} ---"
                 )
 
-                # Check if the cleaned version already exists
-                if os.path.exists(cleaned_path):
-                    print("  -> Cleaned file already exists. Skipping.")
-                    continue
+                # Get the directory part of the cleaned path
+                cleaned_dir = os.path.dirname(cleaned_path)
 
                 # --- MODIFIED: Ensure the destination subdirectory exists before writing ---
                 os.makedirs(cleaned_dir, exist_ok=True)
