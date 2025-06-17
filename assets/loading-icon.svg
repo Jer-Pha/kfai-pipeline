@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="400px" height="400px"
+     viewBox="0 0 400 400">
+
+  <style>
+    /* Phase 1: Wipe Animation (from 0s to 2s) */
+    @keyframes wipe-top-arm {
+      0%    { transform: rotate(0deg); }
+      50%   { transform: rotate(180deg); }
+      100%  { transform: rotate(180deg); }
+    }
+    @keyframes wipe-bottom-arm {
+      0%    { transform: rotate(180deg); }
+      50%   { transform: rotate(360deg); }
+      100%  { transform: rotate(360deg); }
+    }
+
+    /* Phase 2: Reveal Animation (from 2s to 4s) */
+    @keyframes reveal-top-arm {
+      0%    { transform: rotate(0deg); }
+      50%   { transform: rotate(0deg); }
+      100%  { transform: rotate(180deg); }
+    }
+    @keyframes reveal-bottom-arm {
+      0%    { transform: rotate(180deg); }
+      50%   { transform: rotate(180deg); }
+      100%  { transform: rotate(360deg); }
+    }
+
+    /* Assign animations to the arms */
+    #eraser-top    { animation: wipe-top-arm    3s linear infinite; }
+    #eraser-bottom { animation: wipe-bottom-arm 3s linear infinite; }
+    #revealer-top  { animation: reveal-top-arm  3s linear infinite; }
+    #revealer-bottom { animation: reveal-bottom-arm 3s linear infinite; }
+    
+    .arm { transform-origin: 200px 200px; }
+  </style>
+
+  <defs>
+    <mask id="final-wipe-mask">
+      <!-- Base is white, so logo is visible by default -->
+      <rect x="0" y="0" width="400" height="400" fill="white" />
+      
+      <!-- Black Erasing Arms (drawn first, underneath) -->
+      <path id="eraser-top"    class="arm" d="M200,200 h200 a200,200 0 0 1 -200,200 z" fill="black" />
+      <path id="eraser-bottom" class="arm" d="M200,200 h200 a200,200 0 0 1 -200,200 z" fill="black" />
+      
+      <!-- White Revealing Arms (drawn second, on top) -->
+      <path id="revealer-top"    class="arm" d="M200,200 h200 a200,200 0 0 1 -200,200 z" fill="white" />
+      <path id="revealer-bottom" class="arm" d="M200,200 h200 a200,200 0 0 1 -200,200 z" fill="white" />
+    </mask>
+  </defs>
+
+  <!-- Apply the mask to the logo -->
+  <g mask="url(#final-wipe-mask)">
+    <!-- Your original Kinda Funny logo path -->
+    <path id="kf-logo"
+          fill="black"
+          d="M 190,17.42 C 209.38,15.06 241.5,20.63 260,27.14 C 281.18,34.6 298.52,44.27 316,58.46 C 373.79,105.34 397.12,185.37 374.26,256 C 365.89,281.83 354.02,301.45 336.42,322 C 322.95,337.73 299.8,355.31 281,364.22 C 254.36,376.84 225.48,383.34 196,383 C 196,383 186,382.09 186,382.09 C 170.85,381.03 159.54,378.68 145,374.42 C 129.36,369.85 114.67,362.67 101,353.86 C 20.76,302.12 -6.33,196.95 38.89,113 C 61.15,71.66 99.33,40.06 144,25.74 C 155.3,22.12 167.23,19.73 179,18.29 C 179,18.29 190,17.42 190,17.42 Z M 189,31.14 C 189,31.14 178,32.29 178,32.29 C 170.79,33.17 157.92,35.88 151,38.02 C 106.75,51.73 68.56,83.08 48.26,125 C 10.77,202.41 35.46,293.34 107,341.33 C 120.06,350.09 135.87,357.52 151,361.86 C 164.57,365.75 178.83,368.83 193,369 C 223.45,369.35 247.34,365.14 275,351.74 C 291.9,343.56 310.52,329.8 323.16,315.99 C 332.92,305.33 341.79,293.73 348.69,281 C 375.81,230.97 375.81,169.03 348.69,119 C 339.28,101.63 326.44,86.45 312,73.09 C 299.21,61.25 280.21,49.88 264,43.4 C 247.73,36.89 224.52,31.08 207,31.14 C 207,31.14 189,31.14 189,31.14 Z M 145,140.47 C 167.56,137.82 176.43,167.39 158,177.91 C 154.33,180.01 150.11,180.1 146,179.98 C 134.43,179.66 127.54,170.05 128.04,159 C 128.49,149.1 135.81,142.65 145,140.47 Z M 250,140.5 C 277.05,138.7 279.81,176.94 255,180.2 C 238.24,182.41 225.93,164.55 235,150 C 238.82,143.85 243.23,141.9 250,140.5 Z M 271.09,238.75 C 277.82,237.43 284.3,241.74 280.69,249 C 277.84,254.72 269.45,261.3 264,264.55 C 248.25,273.95 221.32,279.97 203,280 C 203,280 186,280 186,280 C 183.44,279.98 180.4,280.16 178.37,278.4 C 175.42,275.96 175.17,269.42 178.37,267.17 C 180.36,265.85 185.45,265.91 188,265.58 C 188,265.58 220,263.2 220,263.2 C 232.09,260.93 244.35,258.47 255,251.93 C 263.03,247.01 265.93,241.71 271.09,238.75 Z"/>
+  </g>
+
+</svg>
