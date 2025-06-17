@@ -1,3 +1,4 @@
+import json
 import os
 from random import uniform
 from time import sleep
@@ -6,8 +7,32 @@ import config
 from db import create_local_sqlite_db, get_video_db_data
 from video import get_youtube_data, process_video
 
+VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
+videos_ids_to_skip = set()
+
 if __name__ == "__main__":
     sqlite_db_path = config.SQLITE_DB_PATH
+
+    if os.path.exists(VIDEOS_TO_SKIP_FILE):
+        try:
+            with open(VIDEOS_TO_SKIP_FILE, "r") as f:
+                video_list = json.load(f)
+                videos_ids_to_skip = set(video_list)
+            print(
+                f"-> Found and loaded {len(videos_ids_to_skip)} previously"
+                " processed video IDs to skip this run."
+            )
+        except (json.JSONDecodeError, IOError) as e:
+            print(
+                f"-> Warning: Could not read or parse {VIDEOS_TO_SKIP_FILE}."
+                f" Starting with an empty set. Error: {e}"
+            )
+            videos_ids_to_skip = set()
+    else:
+        print(
+            f"-> {VIDEOS_TO_SKIP_FILE} not found. Will create it after the"
+            " first successful video processing."
+        )
 
     # Check prevents re-exporting from MySQL on every run.
     if not os.path.exists(sqlite_db_path):
@@ -27,7 +52,7 @@ if __name__ == "__main__":
     all_db_videos = get_video_db_data(sqlite_db_path)
     db_video_ids = {v["video_id"] for v in all_db_videos}
 
-    # Scan the output directory to see what we already have
+    # Scan the output directory to see which videos have been processed
     processed_video_ids = set()
     for root, _, files in os.walk(output_directory):
         for file in files:
@@ -59,7 +84,7 @@ if __name__ == "__main__":
                 video.update(youtube_api_data[video_id])
 
                 # Rate limiting
-                sleep_duration = uniform(1, 3)  # Wait 1 to 3 seconds
+                sleep_duration = uniform(2, 5)  # Wait 2 to 5 seconds
                 print(
                     f"   ...waiting for {sleep_duration:.2f} seconds to avoid"
                     " rate-limiting."
@@ -68,7 +93,18 @@ if __name__ == "__main__":
 
                 # Process video
                 print(f"Processing video: {video_id}")
-                process_video(video, output_directory)
+                skip_next_run = process_video(video, output_directory)
+                if skip_next_run:
+                    videos_ids_to_skip.add(video_id)
+                    try:
+                        with open(VIDEOS_TO_SKIP_FILE, "w") as f:
+                            # Convert the set to a list to make it JSON-serializable
+                            json.dump(list(videos_ids_to_skip), f, indent=4)
+                    except IOError as e:
+                        print(
+                            "FATAL: Could not write to log"
+                            f" file {VIDEOS_TO_SKIP_FILE}. Error: {e}"
+                        )
             else:
                 print(
                     "Warning: Could not find YouTube API data for new video"
