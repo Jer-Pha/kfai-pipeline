@@ -8,13 +8,49 @@ def get_raw_transcript_data(video_id):
     Returns a list of snippet dictionaries, each with 'text', 'start', and 'duration'.
     """
     try:
-        # fetch() is deprecated, get_transcript() is the current method
         transcript_list = YouTubeTranscriptApi.get_transcript(
             video_id, languages=["en"]
         )
         return transcript_list
     except Exception as e:
-        print(f"Could not retrieve transcript for {video_id}: {e}")
+        e = str(e)
+        if (
+            "Subtitles are disabled for this video" in e
+            or "This video is age-restricted" in e
+        ):
+            return video_id
+        elif (
+            "No transcripts were found for any of the requested language"
+            " codes: ['en']"
+        ) in e:
+            try:
+                # Get the list of all available transcripts
+                transcript_list = YouTubeTranscriptApi.list_transcripts(
+                    video_id
+                )
+
+                # Find a transcript that is translatable to English
+                for transcript in transcript_list:
+                    if transcript.is_translatable:
+                        print(
+                            "  -> Found a translatable transcript"
+                            f" in '{transcript.language_code}'."
+                            " Translating to English."
+                        )
+                        return transcript.translate("en").fetch()
+
+                # If no translatable transcripts are found after checking
+                print(
+                    f"  -> No translatable transcripts found for {video_id}."
+                )
+                return None
+
+            except Exception as e:
+                print(
+                    f"  !! An error occurred during translation attempt for {video_id}: {e}"
+                )
+        else:
+            print(f"Could not retrieve transcript for {video_id}: {e}")
         return None
 
 
