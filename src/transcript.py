@@ -24,6 +24,9 @@ def get_raw_transcript_data(video_id):
             " codes: ['en']"
         ) in e:
             try:
+                print(
+                    "  ...Non-English subtitles found, attempting workaround."
+                )
                 # Get the list of all available transcripts
                 transcript_list = YouTubeTranscriptApi.list_transcripts(
                     video_id
@@ -37,13 +40,29 @@ def get_raw_transcript_data(video_id):
                             f" in '{transcript.language_code}'."
                             " Translating to English."
                         )
-                        return transcript.translate("en").fetch()
+
+                        trans_snippets = transcript.translate("en").fetch()
+
+                        # Convert the list of objects to a list of dictionaries
+                        normalized_transcript = []
+                        for snippet in trans_snippets:
+                            normalized_transcript.append(
+                                {
+                                    "text": snippet.text,
+                                    "start": snippet.start,
+                                    "duration": snippet.duration,
+                                }
+                            )
+
+                        print("  -> Translation and normalization successful.")
+                        return normalized_transcript
 
                 # If no translatable transcripts are found after checking
                 print(
-                    f"  -> No translatable transcripts found for {video_id}."
+                    f"  -> No translatable transcripts found for {video_id}"
+                    " - adding to skip list."
                 )
-                return None
+                return video_id
 
             except Exception as e:
                 print(
