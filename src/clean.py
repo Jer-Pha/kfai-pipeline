@@ -155,7 +155,13 @@ if __name__ == "__main__":
                         f"  -> Successfully cleaned and saved to {cleaned_path}"
                     )
                 else:
-                    print("  -> Failed to get a clean response from the API.")
+                    # Save raw data in cleaned folder once cleaning has failed
+                    with open(cleaned_path, "w", encoding="utf-8") as f:
+                        json.dump(video_data, f, indent=4)
+                    print(
+                        "  -> Failed to get a clean response from the API."
+                        " Adding raw data to cleaned directory."
+                    )
 
                 # Wait to respect the per-minute rate limit
                 print(
