@@ -79,6 +79,10 @@ if __name__ == "__main__":
         # Process and save
         for video in new_video_metadata:
             video_id = video["video_id"]
+
+            if video_id in videos_ids_to_skip:
+                continue
+
             if video_id in youtube_api_data:
                 # Merge the DB data with the YouTube API data
                 video.update(youtube_api_data[video_id])
