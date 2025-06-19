@@ -9,12 +9,14 @@ from config import GEMINI_API_KEY  # Assuming you put your key in config.py
 # --- Configuration ---
 RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
+GEMINI_API_MODEL = "gemini-2.0-flash"
+# GEMINI_API_MODEL = "gemini-2.5-flash-preview-05-20"
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
 # --- Set up the Gemini Model ---
 # model = genai.GenerativeModel("gemini-2.0-flash")
-model = genai.GenerativeModel("gemini-2.5-flash-preview-05-20")
+model = genai.GenerativeModel(GEMINI_API_MODEL)
 
 generation_config = genai.GenerationConfig(
     temperature=0.0,  # Make the output deterministic
