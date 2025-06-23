@@ -238,7 +238,9 @@ if __name__ == "__main__":
                 raw_chunks = raw_data.get("transcript_chunks", [])
                 cleaned_chunks = cleaned_data.get("transcript_chunks", [])
 
-                if len(raw_chunks) != len(cleaned_chunks):
+                raw_size = len(raw_chunks)
+
+                if raw_size != len(cleaned_chunks):
                     print(
                         "  -> ERROR: Mismatch in chunk count. Saving as MISMATCHED."
                     )
@@ -248,20 +250,19 @@ if __name__ == "__main__":
                     continue
 
                 is_flagged_or_error = False
-                for i in range(len(raw_chunks)):
+                for i in range(raw_size):
                     raw_text = raw_chunks[i]["text"]
                     cleaned_text = cleaned_chunks[i]["text"]
 
                     chunk_status = validate_chunk(raw_text, cleaned_text)
 
                     if chunk_status == "FLAGGED":
+                        print("* ", end="")
                         chunk_status = audit_flagged_chunk(
                             video_id, raw_text, cleaned_text
                         )
 
-                    print(
-                        f"  Chunk {i+1}/{len(raw_chunks)} status: {chunk_status}"
-                    )
+                    print(f"  Chunk {i+1}/{raw_size} status: {chunk_status}")
 
                     if chunk_status == "FLAGGED":
                         is_flagged_or_error = True
