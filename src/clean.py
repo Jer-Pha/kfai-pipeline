@@ -11,8 +11,8 @@ from config import GEMINI_API_KEY
 # --- Configuration ---
 RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 1000
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 500
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
