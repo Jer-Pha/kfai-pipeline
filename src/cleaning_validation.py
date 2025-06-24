@@ -10,7 +10,7 @@ RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
 RESULTS_FILE = "cleaning_validation_results.json"
 GEMMA_API_MODEL = "gemma-3-12b-it"
-GEMINI_API_MODEL = "gemini-2.5-flash-preview-05-20"
+GEMINI_API_MODEL = "gemini-2.5-flash-lite-preview-06-17"
 SLEEP_DURATION = 2.1
 
 # --- General Setup ---
