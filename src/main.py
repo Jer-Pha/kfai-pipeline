@@ -61,7 +61,9 @@ if __name__ == "__main__":
                 processed_video_ids.add(video_id)
 
     # Find the difference and convert it to a tuple
-    new_video_ids = tuple(db_video_ids.difference(processed_video_ids))
+    new_video_ids = tuple(
+        db_video_ids.difference(processed_video_ids.union(videos_ids_to_skip))
+    )
 
     if not new_video_ids:
         print("No new videos to process. All up to date.")
