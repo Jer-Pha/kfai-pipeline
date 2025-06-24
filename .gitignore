@@ -158,3 +158,4 @@ cython_debug/
 retrospective.md
 checklist.md
 *.json
+(OLD)kfdb.sqlite
