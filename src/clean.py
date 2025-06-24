@@ -11,8 +11,8 @@ from config import GEMINI_API_KEY
 # --- Configuration ---
 RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
                 processed_count += 1
 
-                if processed_count > QUOTA_LIMIT * 0.8:
+                if processed_count > QUOTA_LIMIT * 0.6:
                     print("  ...Approaching quota limit, stopping for now...")
                     break
 
