@@ -1,7 +1,8 @@
 import os
 import json
-import time
 import google.generativeai as genai
+from time import sleep
+from traceback import format_exc
 
 from config import GEMINI_API_KEY
 
@@ -11,7 +12,8 @@ CLEANED_JSON_DIR = "videos_cleaned"
 RESULTS_FILE = "cleaning_validation_results.json"
 GEMMA_API_MODEL = "gemma-3-12b-it"
 GEMINI_API_MODEL = "gemini-2.5-flash-lite-preview-06-17"
-SLEEP_DURATION = 2.1
+GEMMA_SLEEP_DURATION = 2.1
+GEMINI_SLEEP_DURATION = 4.1 - GEMMA_SLEEP_DURATION
 
 # --- General Setup ---
 metadata_cache_id = ""
@@ -163,8 +165,12 @@ def validate_chunk(raw_text, cleaned_text):
             # If the model returns something unexpected, count it as an error.
             print(f"  -> Unexpected API response: '{result_text}'")
             return "ERROR"
-    except Exception as e:
-        print(f"  !! API Error during validation: {e}")
+    except:
+        error = format_exc()
+        print(f"  !! API Error during validation: {error}")
+
+        if "PROHIBITED_CONTENT" in error:
+            return "FLAGGED"
         return "ERROR"
 
 
@@ -196,8 +202,8 @@ def audit_flagged_chunk(video_id, raw_text, cleaned_text):
         else:
             print(f"  -> Unexpected Gemini response: '{result_text}'")
             return "ERROR"
-    except Exception as e:
-        print(f"  !! API Error during Gemini audit: {e}")
+    except:
+        print(f"  !! API Error during Gemini audit: {format_exc()}")
         return "ERROR"
 
 
@@ -261,6 +267,7 @@ if __name__ == "__main__":
                         chunk_status = audit_flagged_chunk(
                             video_id, raw_text, cleaned_text
                         )
+                        sleep(GEMINI_SLEEP_DURATION)
 
                     print(f"  Chunk {i+1}/{raw_size} status: {chunk_status}")
 
@@ -282,7 +289,7 @@ if __name__ == "__main__":
                         )
                         break
 
-                    time.sleep(SLEEP_DURATION)
+                    sleep(GEMMA_SLEEP_DURATION)
 
                 # After checking all chunks, if none were flagged or errored, mark as VALID
                 if not is_flagged_or_error:
@@ -295,9 +302,10 @@ if __name__ == "__main__":
                 save_results(results)
                 validated_ids.add(video_id)
 
-            except Exception as e:
+            except:
                 print(
-                    f"!! An unexpected error occurred while processing {video_id}: {e}"
+                    "!! An unexpected error occurred while processing",
+                    f"{video_id}: {format_exc()}",
                 )
                 if video_id not in results["ERROR"]:
                     results["ERROR"].append(video_id)
