@@ -4,6 +4,7 @@ import google.generativeai as genai
 from collections import defaultdict, deque
 from copy import deepcopy
 from re import sub
+from time import sleep
 from traceback import format_exc
 
 from config import GEMINI_API_KEY
@@ -11,8 +12,9 @@ from config import GEMINI_API_KEY
 # --- Configuration ---
 RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+SLEEP_DURATION = 6.1
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -47,11 +49,10 @@ Use your contextual knowledge of the hosts, show names, common topics (video gam
 - Do NOT remove filler text. Only correct clear errors.
 - If a word or phrase is ambiguous, leave it as is.
 - You must ONLY provide the corrected text snippet and nothing else.
-- Each transcript chunk should be a single response and should not be split between multiple streams.
 """
 
 
-def clean_video_transcript(video_data):
+def clean_video_transcript(video_data, first_attempt=True):
     """Sends a single video's data to Gemini for cleaning."""
     try:
         start_times = deque(
@@ -66,7 +67,13 @@ def clean_video_transcript(video_data):
         transcript_dict = defaultdict(str)
 
         for chunk in video_data["transcript_chunks"]:
+            # Fix transcript profanity reference
             text = sub(r"\[\u00a0__\u00a0\]", "****", chunk["text"])
+
+            # Remove filler
+            text = text.replace(">>", "")
+            text = sub(r"\[\s*[^]]*?\s*\]", "", text)
+            text = sub(r"[\s{2,}\n]", " ", text)
             start_time = chunk["start"]
             transcript_dict[start_time] = text
 
@@ -109,15 +116,43 @@ def clean_video_transcript(video_data):
                     del transcript_dict[start_time]
                 else:
                     buffer += " " + text.strip()
-                    buffer = sub(r" *' *", "'", buffer)
+                    buffer = sub(r"\s+'([^\s^'])", r"'\1", buffer)
+                    buffer = sub(r"([^\s^'])'\s+", r"\1'", buffer)
+                    buffer = sub(r"\s+-([^\s^-])", r"-\1", buffer)
+                    buffer = sub(r"([^\s^-])-\s+", r"\1-", buffer)
 
+            sleep(SLEEP_DURATION)
         return cleaned_video_data
 
     except Exception:
-        print("\n" + "=" * 50)
+        error = format_exc()
         print("  !! An error occurred with the API call:")
-        print(format_exc())
-        print("=" * 50)
+
+        if (
+            "#finishreason) is 8." in error
+            or "block_reason: PROHIBITED_CONTENT" in error
+        ):
+            print(
+                "Gemini refused due to PROHIBITED_CONTENT. Keeping"
+                " original transcript."
+            )
+            return video_data
+        elif "#finishreason) is 2." in error:
+            print("Gemini refused due to MAX_TOKENS. Skipping...")
+            return video_data
+        elif (
+            "GenerateRequestsPerMinutePerProjectPerModel-FreeTier" in error
+            and first_attempt
+        ):
+            print(
+                "GenerateRequestsPerMinutePerProjectPerModel flagged once"
+                " Waiting 120 seconds then attempting again."
+            )
+            sleep(120)
+            return clean_video_transcript(video_data, first_attempt=False)
+
+        print(error)
+
         return None
 
 
@@ -151,9 +186,8 @@ if __name__ == "__main__":
                     print("  ...Approaching quota limit, stopping for now...")
                     break
 
-                print(
-                    f"--- Processing file {processed_count}: {relative_path} ---"
-                )
+                print("\n" + "=" * 50)
+                print(f"--- Processing {processed_count}: {relative_path} ---")
 
                 # Get the directory part of the cleaned path
                 cleaned_dir = os.path.dirname(cleaned_path)
@@ -181,10 +215,11 @@ if __name__ == "__main__":
         else:
             print("\nCleaning process complete.")
 
-    # Catch any OTHER general errors
-    except Exception as e:
-        print("\n" + "=" * 50)
+    except:
+        print("\n" + ("=" * 50))
+        print("=" * 50)
         print("  !! An error occurred with the API call:")
         print(format_exc())
+        print("=" * 50)
         print("=" * 50)
         raise
