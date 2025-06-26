@@ -84,8 +84,6 @@ def process_video(video, output_dir):
     else:
         return False
 
-    # ... (code to save the JSON file is perfect) ...
-    # I changed the key to "transcript_chunks" to be more descriptive
     with open(output_path, "w", encoding="utf-8") as outfile:
         dump(video, outfile, indent=4)
 
