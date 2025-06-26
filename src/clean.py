@@ -13,8 +13,8 @@ from config import GEMINI_API_KEY
 RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
 SLEEP_DURATION = 6.1
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -28,8 +28,7 @@ safety_settings = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
-# --- The Master Prompt ---
-SYSTEM_PROMPT = """
+CLEANING_PROMPT = """
 METADATA:
 {metadata}
 
@@ -51,6 +50,28 @@ Use your contextual knowledge of the hosts, show names, common topics (video gam
 - You must ONLY provide the corrected text snippet and nothing else.
 """
 
+SINGLE_CHUNK_PROMPT = """
+METADATA:
+{metadata}
+
+TRANSCRIPT:
+{transcript_text}
+
+TASK DESCRIPTION:
+You are an expert transcription editor for the 'Kinda Funny' and 'Kinda Funny Games' YouTube channels.
+You have been provided a short video's metadata and transcript.
+Your task is to process the transcript per the following instructions and provide a corrected version of the transcript as text.
+
+FULL INSTRUCTIONS:
+Use your contextual knowledge of the hosts, show names, common topics (video games, movies, comics, etc.), and the video's metadata to accomplish the following items for the transcript:
+- Correct common phonetic mistakes and spelling errors.
+- Capitalize proper nouns like names, games, and show titles.
+- Do NOT change the original meaning, slang, or grammar. Only correct clear errors.
+- Do NOT remove filler text. Only correct clear errors.
+- If a word or phrase is ambiguous, leave it as is.
+- You must ONLY provide the corrected text snippet and nothing else.
+"""
+
 
 def clean_video_transcript(video_data, first_attempt=True):
     """Sends a single video's data to Gemini for cleaning."""
@@ -58,6 +79,7 @@ def clean_video_transcript(video_data, first_attempt=True):
         start_times = deque(
             [chunk["start"] for chunk in video_data["transcript_chunks"]]
         )
+        chunk_count = len(start_times)
         cleaned_video_data = deepcopy(video_data)
         cleaned_video_data["transcript_chunks"] = []
         metadata = {
@@ -77,16 +99,38 @@ def clean_video_transcript(video_data, first_attempt=True):
             start_time = chunk["start"]
             transcript_dict[start_time] = text
 
-        while start_times:
+        # Handle single-chunk videos
+        if chunk_count == 1:
+            start_time = start_times[0]
+            prompt = SINGLE_CHUNK_PROMPT.format(
+                metadata=metadata, transcript_text=transcript_dict[start_time]
+            )
+
+            print("  -> Calling Gemini API...")
+            response = model.generate_content(
+                prompt,
+                generation_config=generation_config,
+                safety_settings=safety_settings,
+            )
+            cleaned_video_data["transcript_chunks"].append(
+                {
+                    "text": response.text.strip(),
+                    "start": start_time,
+                }
+            )
+            return cleaned_video_data
+
+        while chunk_count > 0:
             transcript_chunks = ""
 
             for text in transcript_dict.values():
                 transcript_chunks += f"- {text}\n"
 
-            prompt = SYSTEM_PROMPT.format(
+            prompt = CLEANING_PROMPT.format(
                 metadata=metadata, transcript_chunks=transcript_chunks
             )
 
+            print("  -> Calling Gemini API...")
             response_stream = model.generate_content(
                 prompt,
                 generation_config=generation_config,
@@ -103,8 +147,9 @@ def clean_video_transcript(video_data, first_attempt=True):
                     buffer += " " + split_text[0].strip()
                     buffer = sub(r" *' *", "'", buffer)
                     start_time = start_times.popleft()
+                    chunk_count -= 1
 
-                    if buffer.startswith("- ") and len(buffer) > 2:
+                    if buffer.startswith("-") and len(buffer) > 1:
                         buffer = buffer[2:]
                     cleaned_video_data["transcript_chunks"].append(
                         {
@@ -116,10 +161,26 @@ def clean_video_transcript(video_data, first_attempt=True):
                     del transcript_dict[start_time]
                 else:
                     buffer += " " + text.strip()
+
+                    # Fix spaces around apostrophes
                     buffer = sub(r"\s+'([^\s^'])", r"'\1", buffer)
                     buffer = sub(r"([^\s^'])'\s+", r"\1'", buffer)
+
+                    # Fix spaces around hyphens
                     buffer = sub(r"\s+-([^\s^-])", r"-\1", buffer)
                     buffer = sub(r"([^\s^-])-\s+", r"\1-", buffer)
+
+            if chunk_count == 1:
+                start_time = start_times.popleft()
+                chunk_count -= 1
+                if buffer.startswith("-") and len(buffer) > 1:
+                    buffer = buffer[1:]
+                cleaned_video_data["transcript_chunks"].append(
+                    {
+                        "text": buffer.strip(),
+                        "start": start_time,
+                    }
+                )
 
             sleep(SLEEP_DURATION)
         return cleaned_video_data
@@ -182,7 +243,7 @@ if __name__ == "__main__":
 
                 processed_count += 1
 
-                if processed_count > QUOTA_LIMIT * 0.6:
+                if processed_count >= QUOTA_LIMIT * 0.5:
                     print("  ...Approaching quota limit, stopping for now...")
                     break
 
