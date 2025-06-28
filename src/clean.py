@@ -13,15 +13,17 @@ RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
 API_CHUNK_SIZE = 25
 SLEEP_DURATION = 6.1
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
 # --- Set up the Gemini Model ---
 model = genai.GenerativeModel(GEMINI_API_MODEL)
 generation_config = genai.types.GenerationConfig(
-    temperature=0.0, response_schema=list[str]
+    temperature=0.0,
+    response_mime_type="application/json",
+    response_schema=list[str],
 )
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
