@@ -13,19 +13,20 @@ RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
 API_CHUNK_SIZE = 25
 SLEEP_DURATION = 6.1
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+QUOTA_MULTIPLIER = 0.4
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
 # --- Set up the Gemini Model ---
 model = genai.GenerativeModel(GEMINI_API_MODEL)
-generation_config = genai.types.GenerationConfig(
+MODEL_CONFIG = genai.types.GenerationConfig(
     temperature=0.0,
     response_mime_type="application/json",
     response_schema=list[str],
 )
-safety_settings = [
+MODEL_SAFETY = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
@@ -109,8 +110,8 @@ def clean_video_transcript(video_data, first_attempt=True):
             print("  -> Calling Gemini API...")
             response = model.generate_content(
                 prompt,
-                generation_config=generation_config,
-                safety_settings=safety_settings,
+                generation_config=MODEL_CONFIG,
+                safety_settings=MODEL_SAFETY,
             )
 
             json_match = re.search(r"\[.*\]", response.text, re.DOTALL)
@@ -208,7 +209,7 @@ if __name__ == "__main__":
 
                 processed_count += 1
 
-                if processed_count >= QUOTA_LIMIT * 0.35:
+                if processed_count >= QUOTA_LIMIT * QUOTA_MULTIPLIER:
                     print("  ...Approaching quota limit, stopping for now...")
                     break
 
