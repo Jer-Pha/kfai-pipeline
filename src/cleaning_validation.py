@@ -167,10 +167,9 @@ def validate_chunk(raw_text, cleaned_text):
             return "ERROR"
     except:
         error = format_exc()
-        print(f"  !! API Error during validation: {error}")
-
         if "PROHIBITED_CONTENT" in error:
             return "FLAGGED"
+        print(f"  !! API Error during validation: {error}")
         return "ERROR"
 
 
@@ -203,7 +202,10 @@ def audit_flagged_chunk(video_id, raw_text, cleaned_text):
             print(f"  -> Unexpected Gemini response: '{result_text}'")
             return "ERROR"
     except:
-        print(f"  !! API Error during Gemini audit: {format_exc()}")
+        error = format_exc()
+        if "PROHIBITED_CONTENT" in error:
+            return "FLAGGED"
+        print(f"  !! API Error during Gemini audit: {error}")
         return "ERROR"
 
 
@@ -235,81 +237,69 @@ if __name__ == "__main__":
                 )
                 continue
 
-            try:
-                with open(raw_path, "r", encoding="utf-8") as f:
-                    raw_data = json.load(f)
-                with open(cleaned_path, "r", encoding="utf-8") as f:
-                    cleaned_data = json.load(f)
+            with open(raw_path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+            with open(cleaned_path, "r", encoding="utf-8") as f:
+                cleaned_data = json.load(f)
 
-                raw_chunks = raw_data.get("transcript_chunks", [])
-                cleaned_chunks = cleaned_data.get("transcript_chunks", [])
+            raw_chunks = raw_data.get("transcript_chunks", [])
+            cleaned_chunks = cleaned_data.get("transcript_chunks", [])
 
-                raw_size = len(raw_chunks)
+            raw_size = len(raw_chunks)
 
-                if raw_size != len(cleaned_chunks):
-                    print(
-                        "  -> ERROR: Mismatch in chunk count. Saving as MISMATCHED."
-                    )
-                    results["MISMATCHED"].append(video_id)
-                    save_results(results)
-                    validated_ids.add(video_id)
-                    continue
-
-                is_flagged_or_error = False
-                for i in range(raw_size):
-                    raw_text = raw_chunks[i]["text"]
-                    cleaned_text = cleaned_chunks[i]["text"]
-
-                    chunk_status = validate_chunk(raw_text, cleaned_text)
-
-                    if chunk_status == "FLAGGED":
-                        print("* ", end="")
-                        chunk_status = audit_flagged_chunk(
-                            video_id, raw_text, cleaned_text
-                        )
-                        sleep(GEMINI_SLEEP_DURATION)
-
-                    print(f"  Chunk {i+1}/{raw_size} status: {chunk_status}")
-
-                    if chunk_status == "FLAGGED":
-                        is_flagged_or_error = True
-                        flag_data = {
-                            "video_id": video_id,
-                            "chunk_index": i,
-                            "raw_text": raw_text,
-                            "cleaned_text": cleaned_text,
-                        }
-                        results["FLAGGED"].append(flag_data)
-                        print(f"  -> FLAGGED chunk found. Logging details.")
-                    elif chunk_status == "ERROR":
-                        is_flagged_or_error = True
-                        results["ERROR"].append(video_id)
-                        print(
-                            f"  -> API error found. Marking video '{video_id}' as ERROR."
-                        )
-                        break
-
-                    sleep(GEMMA_SLEEP_DURATION)
-
-                # After checking all chunks, if none were flagged or errored, mark as VALID
-                if not is_flagged_or_error:
-                    results["VALID"].append(video_id)
-                    print(
-                        f"-> Finished validation for {video_id}. Status: VALID."
-                    )
-
-                # Save the results and update the set of processed IDs
-                save_results(results)
-                validated_ids.add(video_id)
-
-            except:
+            if raw_size != len(cleaned_chunks):
                 print(
-                    "!! An unexpected error occurred while processing",
-                    f"{video_id}: {format_exc()}",
+                    "  -> ERROR: Mismatch in chunk count. Saving as MISMATCHED."
                 )
-                if video_id not in results["ERROR"]:
-                    results["ERROR"].append(video_id)
+                results["MISMATCHED"].append(video_id)
                 save_results(results)
                 validated_ids.add(video_id)
+                continue
+
+            is_flagged_or_error = False
+            for i in range(raw_size):
+                raw_text = raw_chunks[i]["text"]
+                cleaned_text = cleaned_chunks[i]["text"]
+
+                chunk_status = validate_chunk(raw_text, cleaned_text)
+
+                if chunk_status == "FLAGGED":
+                    print("* ", end="")
+                    chunk_status = audit_flagged_chunk(
+                        video_id, raw_text, cleaned_text
+                    )
+
+                    sleep(GEMINI_SLEEP_DURATION)
+
+                print(f"  Chunk {i+1}/{raw_size} status: {chunk_status}")
+
+                if chunk_status == "FLAGGED":
+                    is_flagged_or_error = True
+                    flag_data = {
+                        "video_id": video_id,
+                        "chunk_index": i,
+                        "raw_text": raw_text,
+                        "cleaned_text": cleaned_text,
+                    }
+                    results["FLAGGED"].append(flag_data)
+                    print(f"  -> FLAGGED chunk found. Logging details.")
+                elif chunk_status == "ERROR":
+                    is_flagged_or_error = True
+                    results["ERROR"].append(video_id)
+                    print(
+                        f"  -> API error found. Marking video '{video_id}' as ERROR."
+                    )
+                    break
+
+                sleep(GEMMA_SLEEP_DURATION)
+
+            # After checking all chunks, if none were flagged or errored, mark as VALID
+            if not is_flagged_or_error:
+                results["VALID"].append(video_id)
+                print(f"-> Finished validation for {video_id}. Status: VALID.")
+
+            # Save the results and update the set of processed IDs
+            save_results(results)
+            validated_ids.add(video_id)
 
     print("\nValidation process complete.")
