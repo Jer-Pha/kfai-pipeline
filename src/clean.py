@@ -1,9 +1,8 @@
 import os
 import json
 import google.generativeai as genai
-from collections import defaultdict, deque
+import re
 from copy import deepcopy
-from re import sub
 from time import sleep
 from traceback import format_exc
 
@@ -12,6 +11,7 @@ from config import GEMINI_API_KEY
 # --- Configuration ---
 RAW_JSON_DIR = "videos"
 CLEANED_JSON_DIR = "videos_cleaned"
+API_CHUNK_SIZE = 25
 SLEEP_DURATION = 6.1
 # GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
 GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
@@ -20,7 +20,9 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # --- Set up the Gemini Model ---
 model = genai.GenerativeModel(GEMINI_API_MODEL)
-generation_config = genai.types.GenerationConfig(temperature=0.0)
+generation_config = genai.types.GenerationConfig(
+    temperature=0.0, response_schema=list[str]
+)
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -36,74 +38,70 @@ TRANSCRIPT CHUNKS:
 {transcript_chunks}
 
 TASK DESCRIPTION:
-You are an expert transcription editor for the 'Kinda Funny' and 'Kinda Funny Games' YouTube channels.
-You have been provided JSON data for single video's metadata and transcript chunks.
-Your task is to process EACH chunk per the following instructions and stream back a corrected version of that entire chunk as text.
+- You are an expert transcription editor for the 'Kinda Funny' and 'Kinda Funny Games' YouTube channels.
+- You have been provided JSON data for single video's metadata and transcript chunks.
+- Your task is to process EACH chunk per the FULL INSTRUCTIONS and provide all processed chunks as a Python List of strings.
+- You MUST return the EXACT SAME number of chunks as you were given. If you are given 25 chunks, you must return a list containing 25 strings.
 
 FULL INSTRUCTIONS:
 Use your contextual knowledge of the hosts, show names, common topics (video games, movies, comics, etc.), and the video's metadata to accomplish the following items for EACH chunk:
-- Correct common phonetic mistakes and spelling errors.
-- Capitalize proper nouns like names, games, and show titles.
-- Do NOT change the original meaning, slang, or grammar. Only correct clear errors.
-- Do NOT remove filler text. Only correct clear errors.
-- If a word or phrase is ambiguous, leave it as is.
-- You must ONLY provide the corrected text snippet and nothing else.
-"""
-
-SINGLE_CHUNK_PROMPT = """
-METADATA:
-{metadata}
-
-TRANSCRIPT:
-{transcript_text}
-
-TASK DESCRIPTION:
-You are an expert transcription editor for the 'Kinda Funny' and 'Kinda Funny Games' YouTube channels.
-You have been provided a short video's metadata and transcript.
-Your task is to process the transcript per the following instructions and provide a corrected version of the transcript as text.
-
-FULL INSTRUCTIONS:
-Use your contextual knowledge of the hosts, show names, common topics (video games, movies, comics, etc.), and the video's metadata to accomplish the following items for the transcript:
-- Correct common phonetic mistakes and spelling errors.
-- Capitalize proper nouns like names, games, and show titles.
-- Do NOT change the original meaning, slang, or grammar. Only correct clear errors.
-- Do NOT remove filler text. Only correct clear errors.
-- If a word or phrase is ambiguous, leave it as is.
-- You must ONLY provide the corrected text snippet and nothing else.
+  - Correct common phonetic mistakes and spelling errors.
+  - Capitalize proper nouns like names, games, and show titles.
+  - **CRITICAL RULE: Do NOT discard or omit any chunks, even if they appear to be incomplete sentences or fragments. If a chunk is just a fragment, clean it for spelling and return the cleaned fragment. Do not try to make it a full sentence.**
+  - Do NOT change the original meaning, slang, or grammar. Only correct clear errors.
+  - Do NOT remove filler text. Only correct clear errors.
+  - If a word or phrase is ambiguous, leave it as is.
+  - You must ONLY provide the list of corrected text snippets.
+  - Take a breath and relax, you're doing great!
 """
 
 
 def clean_video_transcript(video_data, first_attempt=True):
     """Sends a single video's data to Gemini for cleaning."""
     try:
-        start_times = deque(
-            [chunk["start"] for chunk in video_data["transcript_chunks"]]
-        )
+        start_times = [
+            chunk["start"] for chunk in video_data["transcript_chunks"]
+        ]
         chunk_count = len(start_times)
+        expected_calls = (chunk_count - 1) // API_CHUNK_SIZE + 1
+        pluralization = "s" if expected_calls != 1 else ""
+        print(
+            f"  {chunk_count} chunks found, expecting {expected_calls}"
+            f" API call{pluralization}:"
+        )
         cleaned_video_data = deepcopy(video_data)
         cleaned_video_data["transcript_chunks"] = []
         metadata = {
             k: v for k, v in video_data.items() if k != "transcript_chunks"
         }
 
-        transcript_dict = defaultdict(str)
+        text_chunks = []
 
         for chunk in video_data["transcript_chunks"]:
             # Fix transcript profanity reference
-            text = sub(r"\[\u00a0__\u00a0\]", "****", chunk["text"])
+            text = re.sub(r"\[\u00a0__\u00a0\]", "****", chunk["text"])
 
             # Remove filler
             text = text.replace(">>", "")
-            text = sub(r"\[\s*[^]]*?\s*\]", "", text)
-            text = sub(r"[\s{2,}\n]", " ", text)
+            text = re.sub(r"\[\s*[^]]*?\s*\]", "", text)
+            text = re.sub(r"[\s{2,}\n]", " ", text)
             start_time = chunk["start"]
-            transcript_dict[start_time] = text
+            text_chunks.append(text)
 
-        # Handle single-chunk videos
-        if chunk_count == 1:
-            start_time = start_times[0]
-            prompt = SINGLE_CHUNK_PROMPT.format(
-                metadata=metadata, transcript_text=transcript_dict[start_time]
+        i = 0
+        while i < chunk_count:
+            batch_counter = 0
+            transcript_chunks = ""
+            upper_limit = min(i + API_CHUNK_SIZE, chunk_count)
+
+            for j in range(i, upper_limit):
+                batch_counter += 1
+                transcript_chunks += (
+                    f"CHUNK #{batch_counter}: `{text_chunks[j]}`\n"
+                )
+
+            prompt = CLEANING_PROMPT.format(
+                metadata=metadata, transcript_chunks=transcript_chunks
             )
 
             print("  -> Calling Gemini API...")
@@ -112,76 +110,41 @@ def clean_video_transcript(video_data, first_attempt=True):
                 generation_config=generation_config,
                 safety_settings=safety_settings,
             )
-            cleaned_video_data["transcript_chunks"].append(
-                {
-                    "text": response.text.strip(),
-                    "start": start_time,
-                }
-            )
-            return cleaned_video_data
 
-        while chunk_count > 0:
-            transcript_chunks = ""
+            json_match = re.search(r"\[.*\]", response.text, re.DOTALL)
 
-            for text in transcript_dict.values():
-                transcript_chunks += f"- {text}\n"
+            if not json_match:
+                print(
+                    f"  !! ERROR: Could not find a valid JSON list in"
+                    " the API response. Skipping video. Response text:"
+                )
+                print(response.text)
+                return None
 
-            prompt = CLEANING_PROMPT.format(
-                metadata=metadata, transcript_chunks=transcript_chunks
-            )
+            response_text = json_match.group(0)
 
-            print("  -> Calling Gemini API...")
-            response_stream = model.generate_content(
-                prompt,
-                generation_config=generation_config,
-                safety_settings=safety_settings,
-                stream=True,
-            )
+            response_list = json.loads(response_text)
+            response_size = len(response_list)
 
-            buffer = ""
+            if response_size != batch_counter:
+                print(
+                    f" !! ERROR: {batch_counter} chunks sent to API,"
+                    f" received {response_size} chunks. Skipping this video..."
+                )
+                return None
 
-            for chunk in response_stream:
-                text = chunk.text
-                if "\n" in text:
-                    split_text = text.split("\n")
-                    buffer += " " + split_text[0].strip()
-                    buffer = sub(r" *' *", "'", buffer)
-                    start_time = start_times.popleft()
-                    chunk_count -= 1
+            for j in range(i, upper_limit):
+                start_time = start_times[j]
+                response_list_index = j - i
 
-                    if buffer.startswith("-") and len(buffer) > 1:
-                        buffer = buffer[2:]
-                    cleaned_video_data["transcript_chunks"].append(
-                        {
-                            "text": buffer.strip(),
-                            "start": start_time,
-                        }
-                    )
-                    buffer = split_text[1].strip()
-                    del transcript_dict[start_time]
-                else:
-                    buffer += " " + text.strip()
-
-                    # Fix spaces around apostrophes
-                    buffer = sub(r"\s+'([^\s^'])", r"'\1", buffer)
-                    buffer = sub(r"([^\s^'])'\s+", r"\1'", buffer)
-
-                    # Fix spaces around hyphens
-                    buffer = sub(r"\s+-([^\s^-])", r"-\1", buffer)
-                    buffer = sub(r"([^\s^-])-\s+", r"\1-", buffer)
-
-            if chunk_count == 1:
-                start_time = start_times.popleft()
-                chunk_count -= 1
-                if buffer.startswith("-") and len(buffer) > 1:
-                    buffer = buffer[1:]
                 cleaned_video_data["transcript_chunks"].append(
                     {
-                        "text": buffer.strip(),
+                        "text": response_list[response_list_index].strip(),
                         "start": start_time,
                     }
                 )
 
+            i += API_CHUNK_SIZE
             sleep(SLEEP_DURATION)
         return cleaned_video_data
 
@@ -243,7 +206,7 @@ if __name__ == "__main__":
 
                 processed_count += 1
 
-                if processed_count >= QUOTA_LIMIT * 0.5:
+                if processed_count >= QUOTA_LIMIT * 0.35:
                     print("  ...Approaching quota limit, stopping for now...")
                     break
 
