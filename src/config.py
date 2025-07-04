@@ -13,3 +13,4 @@ DB_PASSWORD = getenv("DB_PASSWORD", default="")
 DB_DATABASE = getenv("DB_DATABASE", default="")
 
 SQLITE_DB_PATH = getenv("SQLITE_DB_PATH", default="")
+POSTGRES_DB_PATH = getenv("POSTGRES_DB_PATH", default="")
