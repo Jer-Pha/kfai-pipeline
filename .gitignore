@@ -160,3 +160,5 @@ checklist.md
 test_questions.md
 *.json
 (OLD)*
+faiss_index_raw/index.faiss
+faiss_index_raw/index.pkl
