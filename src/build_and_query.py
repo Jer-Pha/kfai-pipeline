@@ -4,7 +4,7 @@ import time
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 
@@ -12,7 +12,8 @@ from langchain.prompts import PromptTemplate
 JSON_SOURCE_DIR = "videos"  # Change to "videos_cleaned" later
 VECTOR_STORE_PATH = "faiss_index_raw"  # Change to "faiss_index" later
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-OLLAMA_MODEL = "phi4-mini-reasoning"
+# OLLAMA_MODEL = "phi4-mini-reasoning"
+OLLAMA_MODEL = "deepseek-r1:8b"
 
 
 # --- Step 1: Document Loading Function ---
@@ -84,21 +85,30 @@ def get_vector_store(force_rebuild=False):
 # --- Step 3: RAG Chain Creation Function ---
 def create_qa_chain(vector_store):
     print("Creating RAG chain with Ollama...")
-    llm = Ollama(model=OLLAMA_MODEL)
+    llm = OllamaLLM(model=OLLAMA_MODEL, temperature=0.0)
 
     prompt_template = """
-    You are an expert assistant for the 'Kinda Funny' and 'Kinda Funny Games' YouTube channels.
-    Use ONLY the context below to answer the question. The context may have errors.
-    If the metadata and the text conflict, prefer the metadata.
-    If the context doesn't contain the answer, say you don't have enough information.
+        CONTEXT:
+        {context}
 
-    Context:
-    {context}
+        QUESTION:
+        {question}
 
-    Question: {question}
+        INSTRUCTIONS:
+        You are a factual Q&A assistant for the 'Kinda Funny' YouTube channel archive.
+        The context provided is a direct transcript from all videos on this channel.
+        Your task is to answer the user's QUESTION based ONLY on the provided CONTEXT.
 
-    Answer:
+        CRITICAL RULES:
+        1.  Your entire response must be based **exclusively** on the text provided in the CONTEXT section.
+        2.  Do NOT use any of your outside knowledge. Do not add information that is not explicitly mentioned in the context.
+        3.  If the context does not contain the answer, you MUST state that you do not have enough information.
+        4.  Your final answer should be a direct, concise paragraph. Do NOT use lists or bullet points unless the question specifically asks for them.
+        5.  Do NOT output your thought process, reasoning, or any text other than the final answer.
+
+        ANSWER:
     """
+
     prompt = PromptTemplate(
         template=prompt_template, input_variables=["context", "question"]
     )
@@ -137,6 +147,8 @@ if __name__ == "__main__":
         if not query.strip():
             continue
 
+        start_time = time.time()
+
         print("\nThinking...")
         result = qa_chain.invoke(query)
 
@@ -155,3 +167,6 @@ if __name__ == "__main__":
                 print(f"    Link: {metadata['source']}")
         else:
             print("  - No sources found.")
+
+        end_time = time.time()
+        print(f"\n...response took {end_time - start_time:.2f} seconds.")
