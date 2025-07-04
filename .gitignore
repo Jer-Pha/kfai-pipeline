@@ -157,5 +157,6 @@ cython_debug/
 
 retrospective.md
 checklist.md
+test_questions.md
 *.json
-(OLD)kfdb.sqlite
+(OLD)*
