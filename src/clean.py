@@ -14,8 +14,8 @@ CLEANED_JSON_DIR = "videos_cleaned"
 API_CHUNK_SIZE = 25
 SLEEP_DURATION = 6.1
 QUOTA_MULTIPLIER = 0.4
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
