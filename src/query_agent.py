@@ -17,6 +17,11 @@ EMBEDDING_COLUMN = "embedding"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 SELF_QUERY_LLM = "deepseek-r1:8b"
 QA_LLM = "qwen3:8b"
+
+# Prompt settings
+EXAMPLE_QUERY = (
+    "Episodes of PS I Love You XOXO with Colin and Greg before 2018"
+)
 PRIMARY_HOST_MAP = {
     "Greg": "Greg Miller",
     "Tim": "Tim Gettys",
@@ -39,6 +44,104 @@ PRIMARY_HOST_MAP = {
     "Jared": "Jared Petty",
     "Colin": "Colin Moriarty",
 }
+RETRIEVER_PROMPT = """
+    You are a query translator. Your task is to convert a user's natural language query into a structured JSON object in the format defined below.
+
+    << Structured Request Schema >>
+    Respond using a markdown code block with a JSON object like this:
+
+    ```json
+    {{{{
+        "query": "string",  // The user's original input, minus any metadata constraints
+        "filter": "string"  // A stringified logical filter expression, or "NO_FILTER"
+    }}}}
+    ```
+
+    USER QUERY:
+    {{query}}
+
+    FILTER FORMAT:
+        - Comparison operators: eq, ne, gt, gte, lt, lte, like, in, nin
+        - Logical operators: and, or, not
+        - Filters must be valid logical expressions using only the attributes listed below
+        - Use only attribute names exactly as provided
+        - Use "YYYY-MM-DD" format for date comparisons
+        - If no metadata constraints are present, return "NO_FILTER"
+
+    AVAILABLE METADATA ATTRIBUTES:
+        1. show_name (string)
+            - Name of the show, e.g. "The GameOverGreggy Show"
+            - Use eq comparator only
+
+        2. hosts (list[string])
+            - List of hosts or guests in the video
+            - Use in with one or more names
+            - If the user mentions a first name, map it using this list:
+            {primary_host_instructions}
+
+        3. published_at (timestamp)
+            - Full timestamp the video was published (e.g. "2014-02-03 00:00:00")
+            - Use gt, lt, gte, lte, or eq
+            - Always include the time as midnight ("00:00:00")
+
+    ONLY USE FILTERS IF THEY APPLY.
+        - Do not include metadata conditions in the query string.
+        - If the user mentions something unrelated to metadata, ignore it for filtering.
+
+    LIST OF SHOW NAMES:
+    {show_names}
+
+    LIST OF KNOWN HOSTS AND GUESTS:
+    {hosts}
+
+    << Example >>
+
+    User Input:
+    {example}
+
+    Structured JSON Response:
+
+    ```json
+    {{{{
+        "query": "{example}",
+        "filter": "and(eq(\\"show_name\\", \\"PS I Love You XOXO\\"), in(\\"hosts\\", [\\"Colin Moriarty\\", \\"Greg Miller\\"]), lt(\\"published_at\\", \\"2018-01-01 00:00:00\\"))"
+    }}}}
+    ```
+
+    If no filters can be extracted from the user input, return:
+
+    ```json
+    {{{{
+        "query": "Some natural question",
+        "filter": "NO_FILTER"
+    }}}}
+    ```
+
+    ONLY OUTPUT A SINGLE MARKDOWN JSON BLOCK AND NOTHING ELSE.
+    DO NOT INCLUDE THOUGHTS, EXPLANATIONS, OR COMMENTARY.
+"""
+QA_PROMPT = """
+    CONTEXT:
+    {context}
+
+    USER QUERY:
+    {question}
+
+    INSTRUCTIONS:
+    - You are a factual Q&A assistant for the 'Kinda Funny' YouTube channel archive.
+    - The context provided below is a direct transcript from episodes.
+    - Respond to the USER QUERY based **only** on this CONTEXT.
+
+    IMPORTANT RULES:
+    1. Do not use outside knowledge — only what’s in the CONTEXT.
+    2. If the CONTEXT lacks the answer, say so directly.
+    3. Format your answer as a short, direct paragraph (no lists or bullets unless requested).
+    4. Do not include your reasoning, thoughts, or any internal process — just the answer.
+    5. Do not repeat the user's question.
+    6. Treat the CONTEXT as possibly incomplete or informal (transcript-based).
+
+    ANSWER:
+"""
 
 
 # -- Helper functions --
@@ -77,10 +180,6 @@ if __name__ == "__main__":
     # 2. Fetch unique metadata
     print(" -> Fetching unique metadata for retriever context...")
     show_names, hosts = get_unique_metadata(engine)
-
-    # SQL injection prevention
-    show_names = [s.replace("{", "").replace("}", "") for s in show_names]
-    hosts = [h.replace("{", "").replace("}", "") for h in hosts]
 
     # 3. Initialize embeddings and vector store connection
     print(" -> Connecting to vector store and initializing embedding model...")
@@ -124,96 +223,29 @@ if __name__ == "__main__":
     primary_host_instructions = ", ".join(
         [f"'{k}' likely refers to '{v}'" for k, v in PRIMARY_HOST_MAP.items()]
     )
-    retriever_prompt = f"""
-        You are a query translator. Your task is to convert a user's natural language query into a structured JSON object in the format defined below.
-
-        << Structured Request Schema >>
-        Respond using a markdown code block with a JSON object like this:
-
-        ```json
-        {{{{
-            "query": "string",  // The user's original input, minus any metadata constraints
-            "filter": "string"  // A stringified logical filter expression, or "NO_FILTER"
-        }}}}
-        ```
-
-        USER QUERY:
-        {{query}}
-
-        FILTER FORMAT:
-            - Comparison operators: eq, ne, gt, gte, lt, lte, like, in, nin
-            - Logical operators: and, or, not
-            - Filters must be valid logical expressions using only the attributes listed below
-            - Use only attribute names exactly as provided
-            - Use "YYYY-MM-DD" format for date comparisons
-            - If no metadata constraints are present, return "NO_FILTER"
-
-        AVAILABLE METADATA ATTRIBUTES:
-            1. show_name (string)
-                - Name of the show, e.g. "The GameOverGreggy Show"
-                - Use eq comparator only
-
-            2. hosts (list[string])
-                - List of hosts or guests in the video
-                - Use in with one or more names
-                - If the user mentions a first name, map it using this list:
-                {primary_host_instructions}
-
-            3. published_at (timestamp)
-                - Full timestamp the video was published (e.g. "2014-02-03 00:00:00")
-                - Use gt, lt, gte, lte, or eq
-                - Always include the time as midnight ("00:00:00")
-
-        ONLY USE FILTERS IF THEY APPLY.
-            - Do not include metadata conditions in the query string.
-            - If the user mentions something unrelated to metadata, ignore it for filtering.
-
-        LIST OF SHOW NAMES:
-        {show_names}
-
-        LIST OF KNOWN HOSTS AND GUESTS:
-        {hosts}
-
-        << Example >>
-
-        User Input:
-        Episodes of PS I Love You XOXO with Colin and Greg before 2018
-
-        Structured JSON Response:
-
-        ```json
-        {{{{
-            "query": "Episodes of PS I Love You XOXO with Colin and Greg before 2018",
-            "filter": "and(eq(\\"show_name\\", \\"PS I Love You XOXO\\"), in(\\"hosts\\", [\\"Colin Moriarty\\", \\"Greg Miller\\"]), lt(\\"published_at\\", \\"2018-01-01 00:00:00\\"))"
-        }}}}
-        ```
-
-        If no filters can be extracted from the user input, return:
-
-        ```json
-        {{{{
-            "query": "Some natural question",
-            "filter": "NO_FILTER"
-        }}}}
-        ```
-
-        /no_think
-    """
 
     # 5. Instantiate the self-querying retriever
     print(" -> Initializing Self-Querying Retriever...")
     retriever_llm_options = {
         "temperature": 0.3,
         "num_predict": 2048,  # Hard stop after 2048 tokens to prevent infinite loops
+        "think": False,
     }
     llm_for_retriever = OllamaLLM(
         model=SELF_QUERY_LLM, **retriever_llm_options
     )
 
+    formatted_retriever_prompt = RETRIEVER_PROMPT.format(
+        primary_host_instructions=primary_host_instructions,
+        show_names=show_names,
+        hosts=hosts,
+        example=EXAMPLE_QUERY,
+    )
+
     retriever = SelfQueryRetriever.from_llm(
         llm=llm_for_retriever,
         vectorstore=vector_store,
-        document_contents=retriever_prompt,
+        document_contents=formatted_retriever_prompt,
         metadata_field_info=metadata_field_info,
         verbose=True,  # Change to False after testing
         enable_limit=True,
@@ -221,49 +253,25 @@ if __name__ == "__main__":
     print(" -> Retriever is ready.")
 
     # Testing
-    print(" -> Submitting test query now...")
-    try:
-        retriever.invoke(
-            input="What is Greg Miller's favorite video game console?",
-            kwargs={
-                "query": "On PS I Love You, what did Greg and Colin say about Rocket League?"
-            },
-        )
-    except Exception as e:
-        print(f"Error directly from retriever: {e}")
+    # print(" -> Submitting test query now...")
+    # try:
+    #     retriever.invoke(
+    #         input="What is Greg Miller's favorite video game console?",
+    #         kwargs={
+    #             "query": "On PS I Love You, what did Greg and Colin say about Rocket League?"
+    #         },
+    #     )
+    # except Exception as e:
+    #     print(f"Error directly from retriever: {e}")
 
     # 6. Build the final RAG chain for Q&A
-    qa_prompt = """
-        CONTEXT:
-        {context}
-
-        USER QUERY:
-        {question}
-
-        INSTRUCTIONS:
-        - You are a factual Q&A assistant for the 'Kinda Funny' YouTube channel archive.
-        - The context provided below is a direct transcript from episodes.
-        - Respond to the USER QUERY based **only** on this CONTEXT.
-
-        IMPORTANT RULES:
-        1. Do not use outside knowledge — only what’s in the CONTEXT.
-        2. If the CONTEXT lacks the answer, say so directly.
-        3. Format your answer as a short, direct paragraph (no lists or bullets unless requested).
-        4. Do not include your reasoning, thoughts, or any internal process — just the answer.
-        5. Do not repeat the user's question.
-        6. Treat the CONTEXT as possibly incomplete or informal (transcript-based).
-
-        ANSWER:
-
-        /no_think
-    """
 
     prompt = PromptTemplate(
-        template=qa_prompt, input_variables=["context", "question"]
+        template=QA_PROMPT, input_variables=["context", "question"]
     )
 
     qa_chain = RetrievalQA.from_chain_type(
-        llm=OllamaLLM(model=QA_LLM, temperature=1.0),
+        llm=OllamaLLM(model=QA_LLM, temperature=1.0, think=False),
         chain_type="stuff",
         retriever=retriever,
         chain_type_kwargs={"prompt": prompt},
