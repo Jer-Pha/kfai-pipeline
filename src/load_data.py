@@ -1,0 +1,158 @@
+import os
+import json
+import time
+from sqlalchemy import create_engine, text
+from langchain.schema.document import Document
+from langchain_postgres import PGVector
+from langchain_huggingface import HuggingFaceEmbeddings
+
+import config
+
+# --- Configuration ---
+DB_CONNECTION_STRING = config.POSTGRES_DB_PATH
+# For now, we point to the raw data. Later, you'll change this.
+JSON_SOURCE_DIR = "videos"
+COLLECTION_NAME = "video_transcript_chunks"  # A clear, unique name for your LangChain collection
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+BATCH_SIZE = 256  # Number of documents to process and insert at a time
+
+
+# --- Helper Function ---
+def get_processed_chunk_ids(vectorstore):
+    """
+    Gets a set of already processed chunk IDs (video_id, start_time)
+    by querying the LangChain collection's metadata.
+    """
+    processed_ids = set()
+    # This is a bit of a workaround to access the underlying connection
+    # as LangChain's PGVector doesn't have a built-in "list all" method.
+    try:
+        with create_engine(
+            vectorstore.connection_string
+        ).connect() as connection:
+            # Query the cmetadata column of the embedding table for this collection
+            stmt = text(
+                f"""
+                SELECT cmetadata FROM langchain_pg_embedding
+                WHERE collection_id = (
+                    SELECT uuid FROM langchain_pg_collection WHERE name = :collection_name
+                )
+            """
+            )
+            result = connection.execute(
+                stmt, {"collection_name": vectorstore.collection_name}
+            )
+            for row in result:
+                metadata = row[
+                    0
+                ]  # The metadata is the first (and only) column
+                if (
+                    metadata
+                    and "video_id" in metadata
+                    and "start_time" in metadata
+                ):
+                    processed_ids.add(
+                        (metadata["video_id"], metadata["start_time"])
+                    )
+    except Exception as e:
+        print(
+            f"Could not fetch processed chunks, assuming first run. Error: {e}"
+        )
+    return processed_ids
+
+
+# --- Main Execution ---
+if __name__ == "__main__":
+    # 1. Initialize Connections
+    print("Initializing database connection and embedding model...")
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    vectorstore = PGVector(
+        connection_string=DB_CONNECTION_STRING,
+        collection_name=COLLECTION_NAME,
+        embedding_function=embeddings,
+    )
+    print("Initialization successful.")
+
+    # 2. Get the set of chunks already in the database for resuming
+    processed_chunks_set = get_processed_chunk_ids(vectorstore)
+    print(
+        f"Found {len(processed_chunks_set)} chunks already in the LangChain collection."
+    )
+
+    # 3. Walk through the JSON files to find new documents
+    print(f"Starting to process files from '{JSON_SOURCE_DIR}'...")
+    new_documents_batch = []
+    total_added = 0
+    total_skipped = 0
+    start_time = time.time()
+
+    for root, _, files in os.walk(JSON_SOURCE_DIR):
+        for filename in files:
+            if not filename.endswith(".json"):
+                continue
+
+            filepath = os.path.join(root, filename)
+            with open(filepath, "r", encoding="utf-8") as f:
+                video_data = json.load(f)
+
+            video_id = video_data.get("video_id")
+            if not video_id:
+                continue
+
+            # Prepare the video-level metadata once
+            video_metadata = {
+                "video_id": video_id,
+                "title": video_data.get("title"),
+                "show_name": video_data.get("show_name"),
+                "hosts": video_data.get("hosts", []),
+                "published_at": str(
+                    video_data.get("published_at")
+                ),  # Ensure it's a string for JSONB
+            }
+
+            # 4. Iterate through chunks and create Document objects for new ones
+            for chunk in video_data.get("transcript_chunks", []):
+                chunk_start_time = chunk.get("start")
+
+                # Resumability Check
+                if (video_id, chunk_start_time) in processed_chunks_set:
+                    total_skipped += 1
+                    continue
+
+                # This is a new chunk, prepare its full metadata
+                chunk_metadata = video_metadata.copy()
+                chunk_metadata["start_time"] = float(chunk_start_time)
+
+                doc = Document(
+                    page_content=chunk.get("text", "").strip(),
+                    metadata=chunk_metadata,
+                )
+                new_documents_batch.append(doc)
+
+                # 5. Add documents to the vector store in batches
+                if len(new_documents_batch) >= BATCH_SIZE:
+                    print(
+                        f" -> Embedding and inserting batch of {len(new_documents_batch)} documents..."
+                    )
+                    try:
+                        vectorstore.add_documents(new_documents_batch)
+                        total_added += len(new_documents_batch)
+                    except Exception as e:
+                        print(f"  !! Failed to insert batch: {e}")
+                    new_documents_batch = []  # Reset the batch
+
+    # 6. Insert any final remaining documents
+    if new_documents_batch:
+        print(
+            f" -> Embedding and inserting final batch of {len(new_documents_batch)} documents..."
+        )
+        vectorstore.add_documents(new_documents_batch)
+        total_added += len(new_documents_batch)
+
+    end_time = time.time()
+    print("\n" + "=" * 50)
+    print("✅ Data loading process complete.")
+    print(f"  - Added {total_added} new documents to the collection.")
+    print(f"  - Skipped {total_skipped} documents that already existed.")
+    print(f"⏱️  Total time for this run: {end_time - start_time:.2f} seconds.")
+    print("=" * 50)
