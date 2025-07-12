@@ -1,10 +1,10 @@
+import json
 import time
+from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaLLM
 from langchain_postgres import PGVector
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
-# from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain.prompts import PromptTemplate
 from sqlalchemy import create_engine
 
@@ -35,12 +35,14 @@ QA_PROMPT = """
     - The context provided above is relevant snippets of direct transcript from episodes.
     - Respond to the USER QUERY (below) based **ONLY** on this CONTEXT.
     - The response should focus on the above TOPICS.
+    - The response should an analytical summary and may contain direct quotes from the context.
 
     IMPORTANT RULES:
     1. Do not use outside knowledge — only what’s in the CONTEXT.
     2. If the CONTEXT lacks the answer, say so directly.
-    3. Format your answer as a short, direct paragraph (no lists or bullets unless requested).
+    3. Format your answer as a short, direct paragraph (no lists or bullets unless requested). Preferably between 200-400 words, but this rule is flexible.
     4. Treat the CONTEXT as possibly incomplete or informal (transcript-based).
+    5. If you direct quote a piece of context, use the "video_id" metadata as a citation for the quote.
 
     ONLY OUTPUT THE ANSWER TEXT AND NOTHING ELSE.
     DO NOT INCLUDE THOUGHTS, EXPLANATIONS, OR COMMENTARY.
@@ -102,43 +104,47 @@ if __name__ == "__main__":
 
         # 6. Build retriever with custom filter
         filter_dict, topics = get_filter(query, show_names, hosts)
-        retriever = vector_store.as_retriever(
-            search_kwargs={
-                "k": 10,
-                "filter": filter_dict,
-            }
-        )
 
-        docs = retriever.invoke(topics)
+        docs = vector_store.similarity_search(topics, k=25, filter=filter_dict)
+
         print(f"\n[Retrieved {len(docs)} documents]")
 
-        print("\nThinking...")
+        docs_with_metadata = []
+
+        for idx, doc in enumerate(docs, 1):
+            docs_with_metadata.append(
+                Document(
+                    page_content=(
+                        f"TRANSCRIPT #{idx} TEXT:\n"
+                        f"```{doc.page_content}```\n"
+                        f"TRANSCRIPT #{idx} METADATA:\n"
+                        f"```{json.dumps(doc.metadata)}```\n\n"
+                    ),
+                    metadata=doc.metadata,
+                )
+            )
+
+        # DEBUG PRINT STATEMENTS
+        for idx, doc in enumerate(docs_with_metadata, 1):
+            print(f"Document #{idx}:")
+            print(doc.page_content)
+
+        print("Thinking...")
         result = qa_chain.invoke(
             {
                 "input": query,
                 "topics": topics,
-                "context": docs,
+                "context": docs_with_metadata,
             }
         )
 
+        print("\nAnswer:")
         print(result)
 
-        docs = result.get("context", [])
-        print(f"\n[Retrieved {len(docs)} documents]")
-
-        # Testing
-        for i, doc in enumerate(docs, 1):
-            print(f"\n--- Document {i} ---")
-            print(doc.page_content[:100])  # Show only first 100 chars
-            print(doc.metadata)
-
-        print("\nAnswer:")
-        print(result.get("answer", "!! No answer generated. !!"))
-
         print("\nSources:")
-        if result.get("context"):
-            for source in result.get("context", []):
-                metadata = source.metadata
+        if result:
+            for doc in docs:
+                metadata = doc.metadata
                 print(
                     f"  - From video ID {metadata['video_id']} ("
                     f"at ~{int(metadata['start_time'] // 60)}m"
