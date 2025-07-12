@@ -138,24 +138,30 @@ if __name__ == "__main__":
             }
         )
 
-        print("\nAnswer:")
-        print(result)
-
-        print("\nSources:")
         if result:
+            print("\nAnswer:")
+            print(result)
+            print("\nSources:")
+            source_found = False
             for doc in docs:
                 metadata = doc.metadata
-                print(
-                    f"  - From video ID {metadata['video_id']} ("
-                    f"at ~{int(metadata['start_time'] // 60)}m"
-                    f" {int(metadata['start_time'] % 60)}s)"
-                )
-                print(
-                    f"    Link: https://www.youtube.com/watch?v"
-                    f"={metadata['video_id']}&t={int(metadata['start_time'])}s"
-                )
+                video_id = metadata["video_id"]
+                if video_id in result:
+                    source_found = True
+                    start_time = metadata["start_time"]
+                    print(
+                        f"  - From video ID {video_id} ("
+                        f"at ~{int(start_time // 60)}m"
+                        f" {int(start_time % 60)}s)"
+                    )
+                    print(
+                        f"    Link: https://www.youtube.com/watch?v"
+                        f"={video_id}&t={int(start_time)}s"
+                    )
+            if not source_found:
+                print("  - No sources found.")
         else:
-            print("  - No sources found.")
+            print("  !!  WARNING: No result.")
 
         end_time = time.time()
         print(f"\n...response took {end_time - start_time:.2f} seconds.")
