@@ -14,8 +14,8 @@ CLEANED_JSON_DIR = "videos_cleaned"
 API_CHUNK_SIZE = 25
 SLEEP_DURATION = 6.1
 QUOTA_MULTIPLIER = 0.4
-# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
-GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
+GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.0-flash", 200
+# GEMINI_API_MODEL, QUOTA_LIMIT = "gemini-2.5-flash-preview-05-20", 250
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -99,9 +99,7 @@ def clean_video_transcript(video_data, first_attempt=True):
 
             for j in range(i, upper_limit):
                 batch_counter += 1
-                transcript_chunks += (
-                    f"CHUNK #{batch_counter}: `{text_chunks[j]}`\n"
-                )
+                transcript_chunks += f"CHUNK: `{text_chunks[j]}`\n"
 
             prompt = CLEANING_PROMPT.format(
                 metadata=metadata, transcript_chunks=transcript_chunks
