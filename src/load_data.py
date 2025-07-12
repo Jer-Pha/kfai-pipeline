@@ -104,7 +104,7 @@ if __name__ == "__main__":
                 "video_id": video_id,
                 "title": video_data.get("title"),
                 "show_name": video_data.get("show_name"),
-                "hosts": video_data.get("hosts", []),
+                "hosts": ",".join(video_data.get("hosts", [])),
                 "published_at": str(
                     video_data.get("published_at")
                 ),  # Ensure it's a string for JSONB
