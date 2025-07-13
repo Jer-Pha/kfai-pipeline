@@ -1,10 +1,9 @@
 import json
+import re
 
 from datetime import datetime
 from langchain_ollama import OllamaLLM
-from pprint import pprint
-from sqlalchemy import create_engine, text, Engine
-from typing import Optional
+from sqlalchemy import text, Engine
 
 import config
 
@@ -263,34 +262,58 @@ GET_YEARS_PROMPT = """
     RESPONSE:
 """
 GET_TOPICS_PROMPT = """
-    KNOWN SHOW NAMES:
-    {show_names}
+    METADATA:
+    {metadata}
 
-    INSTRUCTIONS:
-    - You are a meticulous string analyzer and have been provided a USER QUERY below
-    - Your task is to **PARSE** this query for the main **topics** and return them in a comma-separated string
-    - If there is no obvious main topic, return the original query (see EXAMPLE #3)
-    - Do **NOT** include topics that are similar to KNOWN SHOW NAMES (above)
-    - You should **NOT** answer the user question, you **ONLY** need to parse the required information.
-    - Respond with **ONLY** the string of comma-separated topics. Do **NOT** use markdown formatting. Do **NOT** include explanations.
+    INSTRUCTIONS
+    - You are a meticulous string analyzer that has been given a USER QUERY (below)
+    - Your task is to **PARSE** this query for its main **topics**
+    - Do **NOT** include any topics that are similar to the METADATA (above)
+    - If the user misspelled a topic, return it with the correct spelling
+    - Return a JSON object that matches the below formatting
+    - If a topic has Roman numerals, return topics for both the Roman and standard numbers; for example:
+        - "Final Fantasy XIII" as a topic should return both "Final Fantasy XIII" and "Final Fantasy 13"
+        - "Rocky IV" as a topic should return both "Rocky IV" and "Rocky 4"
+    - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question
+    - If no matches are found, return an empty array as the value: []
+
+    RESPONSE FORMAT (JSON):
+    {{
+      "topics": ["string", ...]
+    }}
 
     EXAMPLE #1 QUERY:
-    What did Tamoor and Ben Starr think about Cyberpunk 2077?
+    What did Greg say about The Witcher 3 on P.S. I love you?
+
+    EXAMPLE #1 METADATA:
+    Greg Miller, PS I Love You XOXO
 
     EXAMPLE #1 RESPONSE:
-    Cyberpunk 2077
+    {{
+      "topics": ["The Witcher 3"]
+    }}
 
     EXAMPLE #2 QUERY:
-    What episode of the Gamescast did they talk about Spider-Man?
+    I remember them discussing the 2019 World Series and hotdog eatin contests, was it on the KF Podcast or game over greggy show?
+
+    EXAMPLE #2 METADATA:
+    Kinda Funny Podcast, The GameOverGreggy Show
 
     EXAMPLE #2 RESPONSE:
-    Spider-Man
+    {{
+      "topics": ["2019 World Series", "hotdog eating contests"]
+    }}
 
     EXAMPLE #3 QUERY:
-    What did Joey Noelle and Andrea talk about on the Kinda Funny Morning Show?
+    What did joeynoelle and Andrea talk about on the Morning Show?
+
+    EXAMPLE #3 METADATA:
+    Joey Noelle, Andrea Rene, Kinda Funny Morning Show
 
     EXAMPLE #3 RESPONSE:
-    What did Joey Noelle and Andrea talk about on the Kinda Funny Morning Show?
+    {{
+      "topics": [] // No topics found
+    }}
 
     USER QUERY:
     {query}
@@ -335,27 +358,27 @@ def get_unique_metadata(engine: Engine) -> tuple[list, list]:
     return sorted(show_names), sorted(hosts)
 
 
-def _parse_shows(query: str, show_names: list) -> Optional[list]:
+def _parse_shows(query: str, show_names: list) -> list:
     try:
         get_shows_response = JSON_LLM.invoke(
             GET_SHOWS_PROMPT.format(
-                query=query, show_names=", ".join(show_names)
+                query=query,
+                show_names=", ".join(show_names),
             )
         )
         print("    Shows found:\n", get_shows_response)
 
         get_shows_data = json.loads(get_shows_response)
 
-        if get_shows_data.get("shows", []):
-            return get_shows_data["shows"]
+        return get_shows_data.get("shows", [])
 
     except Exception as e:
         print(f" !! Error while parsing shows:\n{e}\n")
 
-    return None
+    return []
 
 
-def _parse_hosts(query: str, hosts: list) -> Optional[list]:
+def _parse_hosts(query: str, hosts: list) -> list:
     try:
         get_hosts_response = JSON_LLM.invoke(
             GET_HOSTS_PROMPT.format(
@@ -371,16 +394,17 @@ def _parse_hosts(query: str, hosts: list) -> Optional[list]:
         host_filters = []
 
         for host in get_hosts_data.get("hosts", []):
+            host = re.sub(r"([%_])", r"\\\1", host)
             host_filters.append({"hosts": {"$like": f"%{host}%"}})
 
         return host_filters
     except Exception as e:
         print(f" !! Error while parsing hosts:\n{e}\n")
 
-    return None
+    return []
 
 
-def _parse_year_range(query: str) -> Optional[tuple[dict, dict]]:
+def _parse_year_range(query: str) -> list:
     try:
         current_year = datetime.now().year
         response = JSON_LLM.invoke(
@@ -395,74 +419,99 @@ def _parse_year_range(query: str) -> Optional[tuple[dict, dict]]:
         if parsed_data["exact_year"] != "NOT_FOUND":
             print("  ...exact year found", parsed_data["exact_year"])
             year = int(parsed_data["exact_year"])
-            return (
+            return [
                 {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{year}-12-31T23:59:59"}},
-            )
+            ]
 
         if parsed_data["year_range"] != "NOT_FOUND":
             print("  ...year range found:\n", parsed_data["year_range"])
             _range = parsed_data["year_range"].split("-")
             start = int(_range[0])
             end = int(_range[1])
-            return (
+            return [
                 {"published_at": {"$gte": f"{start}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{end}-12-31T23:59:59"}},
-            )
+            ]
 
         if parsed_data["before_year"] != "NOT_FOUND":
             print("  ...before year found", parsed_data["before_year"])
             year = int(parsed_data["before_year"]) - 1
-            return (
+            return [
                 {"published_at": {"$gte": "2012-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{year}-12-31T23:59:59"}},
-            )
+            ]
 
         if parsed_data["after_year"] != "NOT_FOUND":
             print("  ...after year found", parsed_data["after_year"])
             year = int(parsed_data["after_year"]) + 1
-            return (
+            return [
                 {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{current_year}-12-31T23:59:59"}},
-            )
+            ]
     except Exception as e:
         print(f" !! Error while parsing year range:\n{e}\n")
 
-    return None
+    return []
 
 
-def _parse_topics(query: str, show_names: list) -> str:
-    topics = STRING_LLM.invoke(
-        GET_TOPICS_PROMPT.format(
-            query=query,
-            show_names=show_names,
+def _parse_topics(
+    query: str,
+    show_filter: list,
+    hosts_filter: list,
+) -> list:
+    try:
+        metadata = []
+        hosts = hosts_filter.get("hosts", None)
+        if show_filter:
+            metadata += show_filter
+        if hosts:
+            metadata += hosts
+        get_topics_response = JSON_LLM.invoke(
+            GET_TOPICS_PROMPT.format(
+                query=query,
+                metadata=", ".join(show_filter + hosts_filter),
+            )
         )
-    )
-    print("    Topics found:\n", topics)
-    return topics
+        print("    Topics found:\n", get_topics_response)
+
+        get_topics_data = json.loads(get_topics_response)
+
+        return get_topics_data["topics"]
+
+    except Exception as e:
+        print(f" !! Error while parsing year range:\n{e}\n")
+
+    return []
 
 
-def _build_filter(query: str, show_names: list, hosts: list) -> Optional[dict]:
+def _build_filter(
+    show_filter: list,
+    hosts_filter: list,
+    year_filter: tuple,
+    topics_list: list,
+) -> dict | None:
     """Convert to filter for PGVector retriever"""
     print("Building filter...")
     filter_conditions = []
 
-    print(" -> Parsing shows...")
-    show_filter = _parse_shows(query, show_names)
     if show_filter:
         filter_conditions.append({"show_name": {"$in": show_filter}})
 
-    print(" -> Parsing hosts...")
-    hosts_filter = _parse_hosts(query, hosts)
-    if hosts_filter:
-        for condition in hosts_filter:
-            filter_conditions.append(condition)
+    for condition in hosts_filter:
+        filter_conditions.append(condition)
 
-    print(" -> Parsing year range...")
-    year_filter = _parse_year_range(query)
-    if year_filter is not None:
-        for filter in year_filter:
-            filter_conditions.append(filter)
+    for filter in year_filter:
+        filter_conditions.append(filter)
+
+    topic_filters = []
+    for topic in topics_list:
+        if not topic.strip():
+            continue
+        topic = re.sub(r"([%_])", r"\\\1", topic)
+        topic_filters.append({"text": {"$ilike": f"%{topic}%"}})
+    if topic_filters:
+        filter_conditions.append({"$or": topic_filters})
 
     if filter_conditions:
         filter_dict = {"$and": filter_conditions}
@@ -472,9 +521,30 @@ def _build_filter(query: str, show_names: list, hosts: list) -> Optional[dict]:
     return None
 
 
-def get_filter(query: str, show_names: list, hosts: list):
-    filter_dict = _build_filter(query, show_names, hosts)
+def get_filter(
+    query: str, show_names: list, hosts: list
+) -> tuple[str, dict | None]:
+    print("Building filter...")
+
+    print(" -> Parsing shows...")
+    show_filter = _parse_shows(query, show_names)
+
+    print(" -> Parsing hosts...")
+    hosts_filter = _parse_hosts(query, hosts)
+
+    print(" -> Parsing year range...")
+    year_filter = _parse_year_range(query)
 
     print(" -> Parsing topics...")
-    topics = _parse_topics(query, show_names)
-    return filter_dict, topics
+    topics_list = _parse_topics(query, show_filter, hosts_filter)
+
+    filter_dict = _build_filter(
+        show_filter, hosts_filter, year_filter, topics_list
+    )
+
+    if topics_list:
+        topics = ", ".join(topics_list)
+    else:
+        topics = query
+
+    return topics, filter_dict
