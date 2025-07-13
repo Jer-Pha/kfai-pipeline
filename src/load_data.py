@@ -120,11 +120,13 @@ if __name__ == "__main__":
                     continue
 
                 # This is a new chunk, prepare its full metadata
+                chunk_text = chunk.get("text", "").strip()
                 chunk_metadata = video_metadata.copy()
                 chunk_metadata["start_time"] = float(chunk_start_time)
+                chunk_metadata["text"] = chunk_text
 
                 doc = Document(
-                    page_content=chunk.get("text", "").strip(),
+                    page_content=chunk_text,
                     metadata=chunk_metadata,
                 )
                 new_documents_batch.append(doc)
