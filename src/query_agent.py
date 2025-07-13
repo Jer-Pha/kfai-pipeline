@@ -103,7 +103,7 @@ if __name__ == "__main__":
         start_time = time.time()
 
         # 6. Build retriever with custom filter
-        filter_dict, topics = get_filter(query, show_names, hosts)
+        topics, filter_dict = get_filter(query, show_names, hosts)
 
         docs = vector_store.similarity_search(topics, k=25, filter=filter_dict)
 
