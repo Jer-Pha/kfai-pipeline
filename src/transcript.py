@@ -137,7 +137,7 @@ def chunk_transcript_with_overlap(
         if chunk_start_time is not None:
             final_chunks.append(
                 {
-                    "text": chunk_text,
+                    "text": " ".join(chunk_text.split()),
                     "start": round(chunk_start_time, 2),
                 }
             )
