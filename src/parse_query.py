@@ -4,13 +4,14 @@ import re
 from datetime import datetime
 from langchain_ollama import OllamaLLM
 from sqlalchemy import text, Engine
+from traceback import format_exc
 
 import config
 
 # --- Configuration ---
 POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
-MODEL = "phi4-mini:3.8b"
-# PARSE_MODEL = "mistral:7b-instruct"
+# MODEL = "llama3.1:8b-instruct-q5_K_M"
+MODEL = "llama3-chatqa:8b-v1.5-q8_0"
 STRING_LLM = OllamaLLM(
     model=MODEL,
     temperature=0.5,
@@ -268,14 +269,18 @@ GET_TOPICS_PROMPT = """
     INSTRUCTIONS
     - You are a meticulous string analyzer that has been given a USER QUERY (below)
     - Your task is to **PARSE** this query for its main **topics**
-    - Do **NOT** include any topics that are similar to the METADATA (above)
+    - Do **NOT** include any topics that are similar, or identical, to the METADATA (above)
+    - Similar topics might be missing words or have different capitalization, for example:
+        - "PS I love you" might refer to "PS I Love You XOXO"
+        - "gameovergreggy show" might refer to "The GameOverGreggy Show"
+        - "KF pod cast" might refer to "Kinda Funny Podcast"
     - If the user misspelled a topic, return it with the correct spelling
     - Return a JSON object that matches the below formatting
-    - If a topic has Roman numerals, return topics for both the Roman and standard numbers; for example:
+    - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question.
+    - If no matches are found, return an empty array as the value: []
+    - **CRITICAL** If a topic has Roman numerals, return topics for both the Roman and standard numbers; for example:
         - "Final Fantasy XIII" as a topic should return both "Final Fantasy XIII" and "Final Fantasy 13"
         - "Rocky IV" as a topic should return both "Rocky IV" and "Rocky 4"
-    - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question
-    - If no matches are found, return an empty array as the value: []
 
     RESPONSE FORMAT (JSON):
     {{
@@ -388,23 +393,15 @@ def _parse_hosts(query: str, hosts: list) -> list:
             )
         )
         print("    Hosts found:\n", get_hosts_response)
-
         get_hosts_data = json.loads(get_hosts_response)
-
-        host_filters = []
-
-        for host in get_hosts_data.get("hosts", []):
-            host = re.sub(r"([%_])", r"\\\1", host)
-            host_filters.append({"hosts": {"$like": f"%{host}%"}})
-
-        return host_filters
+        return get_hosts_data.get("hosts", [])
     except Exception as e:
         print(f" !! Error while parsing hosts:\n{e}\n")
 
     return []
 
 
-def _parse_year_range(query: str) -> list:
+def _parse_year_range(query: str) -> tuple[list, list]:
     try:
         current_year = datetime.now().year
         response = JSON_LLM.invoke(
@@ -416,71 +413,68 @@ def _parse_year_range(query: str) -> list:
 
         parsed_data = json.loads(response)
 
-        if parsed_data["exact_year"] != "NOT_FOUND":
+        if parsed_data.get("exact_year", None) != "NOT_FOUND":
             print("  ...exact year found", parsed_data["exact_year"])
-            year = int(parsed_data["exact_year"])
+            year = parsed_data["exact_year"]
             return [
                 {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{year}-12-31T23:59:59"}},
-            ]
+            ], [year]
 
-        if parsed_data["year_range"] != "NOT_FOUND":
+        if parsed_data.get("year_range", None) != "NOT_FOUND":
             print("  ...year range found:\n", parsed_data["year_range"])
             _range = parsed_data["year_range"].split("-")
-            start = int(_range[0])
-            end = int(_range[1])
+            start = _range[0]
+            end = _range[1]
             return [
                 {"published_at": {"$gte": f"{start}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{end}-12-31T23:59:59"}},
-            ]
+            ], [start, end]
 
-        if parsed_data["before_year"] != "NOT_FOUND":
+        if parsed_data.get("before_year", None) != "NOT_FOUND":
             print("  ...before year found", parsed_data["before_year"])
             year = int(parsed_data["before_year"]) - 1
             return [
                 {"published_at": {"$gte": "2012-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{year}-12-31T23:59:59"}},
-            ]
+            ], [str(year)]
 
-        if parsed_data["after_year"] != "NOT_FOUND":
+        if parsed_data.get("after_year", None) != "NOT_FOUND":
             print("  ...after year found", parsed_data["after_year"])
             year = int(parsed_data["after_year"]) + 1
             return [
                 {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{current_year}-12-31T23:59:59"}},
-            ]
+            ], [str(year)]
     except Exception as e:
         print(f" !! Error while parsing year range:\n{e}\n")
 
-    return []
+    return [], []
 
 
 def _parse_topics(
     query: str,
     show_filter: list,
     hosts_filter: list,
+    years: list,
 ) -> list:
     try:
-        metadata = []
-        hosts = hosts_filter.get("hosts", None)
-        if show_filter:
-            metadata += show_filter
-        if hosts:
-            metadata += hosts
+        metadata = show_filter + hosts_filter + years
         get_topics_response = JSON_LLM.invoke(
             GET_TOPICS_PROMPT.format(
                 query=query,
-                metadata=", ".join(show_filter + hosts_filter),
+                metadata=", ".join(metadata),
             )
         )
         print("    Topics found:\n", get_topics_response)
 
         get_topics_data = json.loads(get_topics_response)
+        topics = get_topics_data["topics"]
+        return [t for t in topics if t not in metadata]
 
-        return get_topics_data["topics"]
-
-    except Exception as e:
-        print(f" !! Error while parsing year range:\n{e}\n")
+    except:
+        print(f" !! Error while parsing topics:")
+        print(format_exc(), end="\n\n")
 
     return []
 
@@ -492,14 +486,15 @@ def _build_filter(
     topics_list: list,
 ) -> dict | None:
     """Convert to filter for PGVector retriever"""
-    print("Building filter...")
+    print("  -> Combining filter...")
     filter_conditions = []
 
     if show_filter:
         filter_conditions.append({"show_name": {"$in": show_filter}})
 
-    for condition in hosts_filter:
-        filter_conditions.append(condition)
+    for host in hosts_filter:
+        host = re.sub(r"([%_])", r"\\\1", host)
+        filter_conditions.append({"hosts": {"$like": f"%{host}%"}})
 
     for filter in year_filter:
         filter_conditions.append(filter)
@@ -515,7 +510,7 @@ def _build_filter(
 
     if filter_conditions:
         filter_dict = {"$and": filter_conditions}
-        print("Filter built:\n", filter_dict)
+        print("    Final filter:\n", filter_dict)
         return filter_dict
 
     return None
@@ -525,21 +520,22 @@ def get_filter(
     query: str, show_names: list, hosts: list
 ) -> tuple[str, dict | None]:
     print("Building filter...")
+    print(f"  Model: {MODEL}")
 
     print(" -> Parsing shows...")
-    show_filter = _parse_shows(query, show_names)
+    shows_list = _parse_shows(query, show_names)
 
     print(" -> Parsing hosts...")
-    hosts_filter = _parse_hosts(query, hosts)
+    hosts_list = _parse_hosts(query, hosts)
 
     print(" -> Parsing year range...")
-    year_filter = _parse_year_range(query)
+    year_filter, years = _parse_year_range(query)
 
     print(" -> Parsing topics...")
-    topics_list = _parse_topics(query, show_filter, hosts_filter)
+    topics_list = _parse_topics(query, shows_list, hosts_list, years)
 
     filter_dict = _build_filter(
-        show_filter, hosts_filter, year_filter, topics_list
+        shows_list, hosts_list, year_filter, topics_list
     )
 
     if topics_list:
