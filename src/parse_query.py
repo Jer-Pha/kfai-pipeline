@@ -279,7 +279,7 @@ GET_TOPICS_PROMPT = """
     - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question.
     - If no matches are found, return an empty array as the value: []
     - **CRITICAL** If a topic has Roman numerals, return topics for both the Roman and standard numbers; for example:
-        - "Final Fantasy XIII" as a topic should return both "Final Fantasy XIII" and "Final Fantasy 13"
+        - "Final Fantasy Versus XIII" as a topic should return both "Final Fantasy Versus XIII" and "Final Fantasy Versus 13"
         - "Rocky IV" as a topic should return both "Rocky IV" and "Rocky 4"
 
     RESPONSE FORMAT (JSON):
@@ -288,14 +288,14 @@ GET_TOPICS_PROMPT = """
     }}
 
     EXAMPLE #1 QUERY:
-    What did Greg say about The Witcher 3 on P.S. I love you?
+    What did Greg say about The Witcher III on P.S. I love you?
 
     EXAMPLE #1 METADATA:
     Greg Miller, PS I Love You XOXO
 
     EXAMPLE #1 RESPONSE:
     {{
-      "topics": ["The Witcher 3"]
+      "topics": ["The Witcher III", "The Witcher 3"]
     }}
 
     EXAMPLE #2 QUERY:
