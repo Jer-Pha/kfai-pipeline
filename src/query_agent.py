@@ -18,11 +18,11 @@ logging.basicConfig(level=logging.INFO)
 # --- Configuration ---
 POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
 COLLECTION_TABLE = "video_transcript_chunks"
+CONTEXT_COUNT = 100
 EMBEDDING_COLUMN = "embedding"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-# QA_LLM = "phi4-mini:3.8b"
-# QA_LLM = "mistral:7b-instruct"
-QA_LLM = "qwen3:8b"
+# QA_MODEL = "llama3.1:8b-instruct-q5_K_M"
+QA_MODEL = "llama3-chatqa:8b-v1.5-q8_0"
 QA_PROMPT = """
     CONTEXT:
     {context}
@@ -33,19 +33,18 @@ QA_PROMPT = """
     INSTRUCTIONS:
     - You are a factual Q&A assistant for the 'Kinda Funny' YouTube channel archive.
     - The context provided above is relevant snippets of direct transcript from episodes.
-    - Respond to the USER QUERY (below) based **ONLY** on this CONTEXT.
-    - The response should focus on the above TOPICS.
-    - The response should an analytical summary and may contain direct quotes from the context.
+    - Your task is to respond to the USER QUERY (below) based **ONLY** on this CONTEXT.
+    - Use the "video_id" metadata as a citation for each sentence.
+    - Focus your response on the list of TOPICS (above) and the USER QUERY
 
     IMPORTANT RULES:
-    1. Do not use outside knowledge — only what’s in the CONTEXT.
+    1. The response **MUST NOT** include previous knowledge that is not mentioned in the CONTEXT.
     2. If the CONTEXT lacks the answer, say so directly.
-    3. Format your answer as a short, direct paragraph (no lists or bullets unless requested). Preferably between 200-400 words, but this rule is flexible.
-    4. Treat the CONTEXT as possibly incomplete or informal (transcript-based).
-    5. If you direct quote a piece of context, use the "video_id" metadata as a citation for the quote.
-
-    ONLY OUTPUT THE ANSWER TEXT AND NOTHING ELSE.
-    DO NOT INCLUDE THOUGHTS, EXPLANATIONS, OR COMMENTARY.
+    3. Treat the CONTEXT as possibly incomplete or informal (transcript-based chunks).
+    4. The user must know which video(s) you are referencing for each sentence — cite your sources!
+    5. The response **MUST** be formatted as a paragraph — no lists or bullets unless the user requests them directly.
+    6. Do **NOT* stop at the first piece of context that answers the question. Go through the entire CONTEXT then formulate your response.
+    7. Only output the RESPONSE text and nothing else — do **NOT** include thoughts, explanations, or commentary.
 
     USER QUERY:
     {input}
@@ -81,7 +80,7 @@ if __name__ == "__main__":
         template=QA_PROMPT, input_variables=["input", "context"]
     )
     qa_chain = create_stuff_documents_chain(
-        llm=OllamaLLM(model=QA_LLM, temperature=0.3, think=False),
+        llm=OllamaLLM(model=QA_MODEL, temperature=0.3, think=False),
         prompt=qa_prompt,
     )
 
@@ -90,6 +89,7 @@ if __name__ == "__main__":
         "\n--- KFAI Agent is ready."
         f" Setup took {end_time - start_time:.2f} seconds. ---"
     )
+    print(f"Model: {QA_MODEL}")
 
     # 5. Start the Interactive Query Loop
     while True:
@@ -100,34 +100,37 @@ if __name__ == "__main__":
         if not query.strip():
             continue
 
-        start_time = time.time()
+        start = time.time()
 
         # 6. Build retriever with custom filter
         topics, filter_dict = get_filter(query, show_names, hosts)
 
-        docs = vector_store.similarity_search(topics, k=25, filter=filter_dict)
+        docs = vector_store.similarity_search(
+            topics, k=CONTEXT_COUNT, filter=filter_dict
+        )
 
-        print(f"\n[Retrieved {len(docs)} documents]")
+        print(
+            f"\nRetrieved {len(docs)} documents -"
+            f" [upper limit: {CONTEXT_COUNT}]"
+        )
 
         docs_with_metadata = []
 
         for idx, doc in enumerate(docs, 1):
+            metadata = doc.metadata
+            metadata.pop("text", None)
+
             docs_with_metadata.append(
                 Document(
                     page_content=(
                         f"TRANSCRIPT #{idx} TEXT:\n"
                         f"```{doc.page_content}```\n"
                         f"TRANSCRIPT #{idx} METADATA:\n"
-                        f"```{json.dumps(doc.metadata)}```\n\n"
+                        f"```{json.dumps(metadata)}```\n\n"
                     ),
-                    metadata=doc.metadata,
+                    metadata=metadata,
                 )
             )
-
-        # DEBUG PRINT STATEMENTS
-        for idx, doc in enumerate(docs_with_metadata, 1):
-            print(f"Document #{idx}:")
-            print(doc.page_content)
 
         print("Thinking...")
         result = qa_chain.invoke(
@@ -163,5 +166,5 @@ if __name__ == "__main__":
         else:
             print("  !!  WARNING: No result.")
 
-        end_time = time.time()
-        print(f"\n...response took {end_time - start_time:.2f} seconds.")
+        end = time.time()
+        print(f"\n...response took {(end - start):.2f} seconds.")
