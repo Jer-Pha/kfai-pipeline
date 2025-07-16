@@ -35,7 +35,8 @@ QA_PROMPT = """
     - The context provided above is relevant snippets of direct transcript from episodes.
     - Your task is to respond to the USER QUERY (below) based **ONLY** on this CONTEXT.
     - Use the "video_id" metadata as a citation for each sentence.
-    - Focus your response on the list of TOPICS (above) and the USER QUERY
+    - Focus your response on the list of TOPICS (above) and the USER QUERY.
+    - Do not direct quote the context unless the user asked for a direct quote.
 
     IMPORTANT RULES:
     1. The response **MUST NOT** include previous knowledge that is not mentioned in the CONTEXT.
@@ -43,7 +44,7 @@ QA_PROMPT = """
     3. Treat the CONTEXT as possibly incomplete or informal (transcript-based chunks).
     4. The user must know which video(s) you are referencing for each sentence — cite your sources!
     5. The response **MUST** be formatted as a paragraph — no lists or bullets unless the user requests them directly.
-    6. Do **NOT* stop at the first piece of context that answers the question. Go through the entire CONTEXT then formulate your response.
+    6. Do **NOT* stop at the first piece of context that answers the question. Go through the entire CONTEXT then formulate your response. You **SHOULD** reference as many videos as necessary to fully answer the USER QUERY.
     7. Only output the RESPONSE text and nothing else — do **NOT** include thoughts, explanations, or commentary.
 
     USER QUERY:
@@ -108,6 +109,13 @@ if __name__ == "__main__":
         docs = vector_store.similarity_search(
             topics, k=CONTEXT_COUNT, filter=filter_dict
         )
+        doc_count = len(docs)
+
+        if not doc_count:
+            print(
+                "  !!  WARNING: No documents found, skipping this question..."
+            )
+            continue
 
         print(
             f"\nRetrieved {len(docs)} documents -"
