@@ -10,17 +10,22 @@ import config
 
 # --- Configuration ---
 POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
-# MODEL = "llama3.1:8b-instruct-q5_K_M"
-MODEL = "llama3-chatqa:8b-v1.5-q8_0"
+MODEL = "qwen3:14b-q4_K_M"
 STRING_LLM = OllamaLLM(
     model=MODEL,
-    temperature=0.5,
-    verbose=True,
+    temperature=0.1,
+    top_p=0.88,
+    top_k=30,
+    reasoning=True,
+    verbose=False,
 )
 JSON_LLM = OllamaLLM(
     model=MODEL,
-    temperature=0,
-    verbose=True,
+    temperature=0.1,
+    top_p=0.88,
+    top_k=30,
+    reasoning=True,
+    verbose=False,
     format="json",
 )
 
