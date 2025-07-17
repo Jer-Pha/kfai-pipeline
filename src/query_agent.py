@@ -21,8 +21,15 @@ COLLECTION_TABLE = "video_transcript_chunks"
 CONTEXT_COUNT = 100
 EMBEDDING_COLUMN = "embedding"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-# QA_MODEL = "llama3.1:8b-instruct-q5_K_M"
-QA_MODEL = "llama3-chatqa:8b-v1.5-q8_0"
+QA_MODEL = "qwen3:14b-q4_K_M"
+llm = OllamaLLM(
+    model=QA_MODEL,
+    temperature=0.4,
+    top_p=0.95,
+    top_k=50,
+    reasoning=True,
+    verbose=False,
+)
 QA_PROMPT = """
     CONTEXT:
     {context}
@@ -81,7 +88,7 @@ if __name__ == "__main__":
         template=QA_PROMPT, input_variables=["input", "context"]
     )
     qa_chain = create_stuff_documents_chain(
-        llm=OllamaLLM(model=QA_MODEL, temperature=0.3, think=False),
+        llm=llm,
         prompt=qa_prompt,
     )
 
