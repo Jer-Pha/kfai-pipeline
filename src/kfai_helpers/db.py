@@ -4,7 +4,7 @@ import sqlite3
 import config
 
 
-def export_mysql_to_sqlite(mysql_config, sqlite_db_path):
+def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
     """Exports relevant data from a MySQL database to an SQLite database."""
     mysql_conn, sqlite_conn = None, None
     try:
@@ -114,7 +114,7 @@ def create_local_sqlite_db():
         "database": config.DB_DATABASE,
     }
 
-    export_mysql_to_sqlite(mysql_config, config.SQLITE_DB_PATH)
+    _export_mysql_to_sqlite(mysql_config, config.SQLITE_DB_PATH)
 
 
 def get_video_db_data(sqlite_db, video_ids=None):

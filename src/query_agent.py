@@ -8,8 +8,9 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
 from sqlalchemy import create_engine
 
-import config
-from parse_query import get_filter, get_unique_metadata
+import kfai_helpers.config as config
+from kfai_helpers.parse_query import get_filter, get_unique_metadata
+from kfai_helpers.utils import format_duration
 
 import logging
 
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     end_time = time.time()
     print(
         "\n--- KFAI Agent is ready."
-        f" Setup took {end_time - start_time:.2f} seconds. ---"
+        f" Setup took {format_duration(end_time - start_time)}. ---"
     )
     print(f"Model: {QA_MODEL}")
 
@@ -182,4 +183,4 @@ if __name__ == "__main__":
             print("  !!  WARNING: No result.")
 
         end = time.time()
-        print(f"\n...response took {(end - start):.2f} seconds.")
+        print(f"\n...response took {format_duration(end - start)}.")

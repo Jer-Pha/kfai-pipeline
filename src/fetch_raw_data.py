@@ -3,9 +3,9 @@ import os
 from random import uniform
 from time import sleep
 
-import config
-from db import create_local_sqlite_db, get_video_db_data
-from video import get_youtube_data, process_video
+import kfai_helpers.config as config
+from kfai_helpers.db import create_local_sqlite_db, get_video_db_data
+from kfai_helpers.video import get_youtube_data, process_video
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
 videos_ids_to_skip = set()

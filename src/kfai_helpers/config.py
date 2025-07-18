@@ -5,7 +5,6 @@ load_dotenv()
 
 DEBUG = getenv("DEBUG", default="True").lower() == "true"
 YOUTUBE_API_KEY = getenv("YOUTUBE_API_KEY", default="")
-GEMINI_API_KEY = getenv("GEMINI_API_KEY", default="")
 
 DB_HOST = getenv("DB_HOST", default="")
 DB_USER = getenv("DB_USER", default="")

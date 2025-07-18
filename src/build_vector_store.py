@@ -6,7 +6,9 @@ from langchain.schema.document import Document
 from langchain_postgres import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 
-import config
+import kfai_helpers.config as config
+from kfai_helpers.utils import format_duration
+
 
 # --- Configuration ---
 DB_CONNECTION_STRING = config.POSTGRES_DB_PATH
@@ -153,8 +155,10 @@ if __name__ == "__main__":
 
     end_time = time.time()
     print("\n" + "=" * 50)
-    print("✅ Data loading process complete.")
+    print("  Data loading process complete.")
     print(f"  - Added {total_added} new documents to the collection.")
     print(f"  - Skipped {total_skipped} documents that already existed.")
-    print(f"⏱️  Total time for this run: {end_time - start_time:.2f} seconds.")
+    print(
+        f"  Total time for this run: {format_duration(end_time - start_time)}."
+    )
     print("=" * 50)

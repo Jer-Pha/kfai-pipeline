@@ -4,7 +4,9 @@ from langchain.schema.document import Document
 from langchain_postgres import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 
-import config  # Make sure this includes POSTGRES_DB_PATH and COLLECTION_TABLE
+import config
+from utils import format_duration
+
 
 # --- Configuration ---
 POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
@@ -83,4 +85,4 @@ if __name__ == "__main__":
     print(
         f"\n✅ Done. Added {count} new documents, skipped {skipped} already existing ones."
     )
-    print(f"⏱️ Total time: {end - start:.2f} seconds.")
+    print(f"⏱️ Total time: {format_duration(end - start)}.")

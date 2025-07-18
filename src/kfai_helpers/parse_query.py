@@ -1,6 +1,5 @@
 import json
 import re
-
 from datetime import datetime
 from langchain_ollama import OllamaLLM
 from sqlalchemy import text, Engine

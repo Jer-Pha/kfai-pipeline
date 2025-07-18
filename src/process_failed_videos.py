@@ -1,8 +1,8 @@
 import json
 
-import config
-from db import get_video_db_data
-from video import get_youtube_data
+import kfai_helpers.config as config
+from kfai_helpers.db import get_video_db_data
+from kfai_helpers.video import get_youtube_data
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
 videos_ids_to_skip = tuple()
