@@ -1,3 +1,6 @@
+# DEPRECATED: This script is no longer used in the current pipeline.
+# Retained for reference.
+
 import os
 import json
 import google.generativeai as genai

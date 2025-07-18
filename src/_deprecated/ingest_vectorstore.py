@@ -1,6 +1,10 @@
 import time
 from sqlalchemy import create_engine, text
 from langchain.schema.document import Document
+
+# DEPRECATED: This script is no longer used in the current pipeline.
+# Retained for reference.
+
 from langchain_postgres import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 

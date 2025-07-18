@@ -1,3 +1,6 @@
+# DEPRECATED: This script is no longer used in the current pipeline.
+# Retained for reference.
+
 import os
 import json
 from sqlalchemy import create_engine, text
