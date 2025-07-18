@@ -187,7 +187,11 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
 
         chunk_count = len(video_data["transcript_chunks"])
         pluralization = "s" if chunk_count != 1 else ""
-        print(f"  >> {chunk_count} chunk{pluralization} found", end="")
+        print(
+            f"  >> {chunk_count} chunk{pluralization} found...",
+            end="",
+            flush=True,
+        )
         cleaned_video_data = {
             k: v for k, v in video_data.items() if k != "transcript_chunks"
         }
