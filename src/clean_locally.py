@@ -4,9 +4,8 @@ import logging
 import re
 import time
 from langchain_ollama import OllamaLLM
+from tqdm import tqdm
 from traceback import format_exc
-
-from kfai_helpers.utils import format_duration
 
 
 # --- CONFIGURATION ---
@@ -186,12 +185,6 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
         profile_start = time.time()
 
         chunk_count = len(video_data["transcript_chunks"])
-        pluralization = "s" if chunk_count != 1 else ""
-        print(
-            f"  >> {chunk_count} chunk{pluralization} found...",
-            end="",
-            flush=True,
-        )
         cleaned_video_data = {
             k: v for k, v in video_data.items() if k != "transcript_chunks"
         }
@@ -199,9 +192,12 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
         cleaned_video_data["transcript_chunks"] = []
 
         _invoke_llm = llm.invoke
-
         _clean = _clean_response
-        _format_duration = format_duration
+
+        progress_bar = tqdm(
+            total=chunk_count,
+            unit="chunk",
+        )
 
         for chunk in video_data["transcript_chunks"]:
             text = _clean_text_chunk(chunk["text"])
@@ -230,6 +226,7 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
                         "start": chunk["start"],
                     }
                 )
+                progress_bar.update(1)
             except:
                 logger.error(
                     f"LLM call failed on chunk in {relative_path} starting "
@@ -240,11 +237,11 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
                     f"  !! LLM call failed. See {LOGS_DIR} for details."
                     " Skipping video."
                 )
-
+                progress_bar.close()
                 return None
 
+        progress_bar.close()
         profile_end = time.time()
-        print(f"processed in {_format_duration(profile_end - profile_start)}.")
 
         return cleaned_video_data
     except:
