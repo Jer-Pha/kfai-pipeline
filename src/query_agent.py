@@ -9,12 +9,13 @@ from langchain.prompts import PromptTemplate
 from sqlalchemy import create_engine
 
 import kfai_helpers.config as config
-from kfai_helpers.parse_query import get_filter, get_unique_metadata
+from kfai_helpers.parse_query import (
+    clean_llm_response,
+    get_filter,
+    get_unique_metadata,
+)
 from kfai_helpers.utils import format_duration
 
-import logging
-
-logging.basicConfig(level=logging.INFO)
 
 # --- Configuration ---
 POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
@@ -30,6 +31,7 @@ llm = OllamaLLM(
     top_k=50,
     reasoning=True,
     verbose=False,
+    keep_alive=300,
 )
 QA_PROMPT = """
     CONTEXT:
@@ -52,8 +54,9 @@ QA_PROMPT = """
     3. Treat the CONTEXT as possibly incomplete or informal (transcript-based chunks).
     4. The user must know which video(s) you are referencing for each sentence — cite your sources!
     5. The response **MUST** be formatted as a paragraph — no lists or bullets unless the user requests them directly.
-    6. Do **NOT* stop at the first piece of context that answers the question. Go through the entire CONTEXT then formulate your response. You **SHOULD** reference as many videos as necessary to fully answer the USER QUERY.
-    7. Only output the RESPONSE text and nothing else — do **NOT** include thoughts, explanations, or commentary.
+    6. RESPONSE word count is flexible to ensure the user's query is **properly** answered, but it should be no fewer than 150 words and no more than 1000 words.
+    7. Do **NOT* stop at the first piece of context that answers the question. Go through the entire CONTEXT then formulate your response. You **SHOULD** reference as many videos as necessary to fully answer the USER QUERY.
+    8. Only output the RESPONSE text and nothing else — do **NOT** include thoughts, explanations, or commentary.
 
     USER QUERY:
     {input}
@@ -156,6 +159,8 @@ if __name__ == "__main__":
                 "context": docs_with_metadata,
             }
         )
+
+        result = clean_llm_response(result)
 
         if result:
             print("\nAnswer:")
