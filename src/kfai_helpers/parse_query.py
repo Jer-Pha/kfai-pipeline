@@ -5,30 +5,27 @@ from langchain_ollama import OllamaLLM
 from sqlalchemy import text, Engine
 from traceback import format_exc
 
-import config
+from .config import POSTGRES_DB_PATH
 
-# --- Configuration ---
-POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
+# --- CONFIGURATION ---
+POSTGRES_DB_PATH = POSTGRES_DB_PATH
 MODEL = "qwen3:14b-q4_K_M"
-STRING_LLM = OllamaLLM(
+llm = OllamaLLM(
     model=MODEL,
     temperature=0.1,
-    top_p=0.88,
-    top_k=30,
+    top_p=0.92,
+    top_k=25,
     reasoning=True,
     verbose=False,
-)
-JSON_LLM = OllamaLLM(
-    model=MODEL,
-    temperature=0.1,
-    top_p=0.88,
-    top_k=30,
-    reasoning=True,
-    verbose=False,
-    format="json",
+    keep_alive=300,
 )
 
-# --- Prompt Config ---
+# -- GLOBAL REGEX COMPILERS ---
+_compile = re.compile
+_sub_squotes = _compile(r"[‘’]").sub
+_sub_dquotes = _compile(r"[“”]").sub
+
+# --- PROMPT SETUP ---
 PRIMARY_HOST_MAP = {
     "Greg": "Greg Miller",
     "Tim": "Tim Gettys",
@@ -54,6 +51,8 @@ PRIMARY_HOST_MAP = {
 PRIMARY_HOSTS = ", ".join(
     [f"'{k}' likely refers to '{v}'" for k, v in PRIMARY_HOST_MAP.items()]
 )
+
+# --- PROMPT TEMPLATES ---
 GET_SHOWS_PROMPT = """
     KNOWN SHOW NAMES:
     {show_names}
@@ -278,6 +277,7 @@ GET_TOPICS_PROMPT = """
         - "PS I love you" might refer to "PS I Love You XOXO"
         - "gameovergreggy show" might refer to "The GameOverGreggy Show"
         - "KF pod cast" might refer to "Kinda Funny Podcast"
+    - Consider any phrases with two or more words that **surrounded by quotes** as a topic
     - If the user misspelled a topic, return it with the correct spelling
     - Return a JSON object that matches the below formatting
     - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question.
@@ -331,6 +331,7 @@ GET_TOPICS_PROMPT = """
 """
 
 
+# --- HELPER FUNCTIONS ---
 def get_unique_metadata(engine: Engine) -> tuple[list, list]:
     """Queries the database to get all unique show names and hosts."""
     show_names = set()
@@ -367,20 +368,27 @@ def get_unique_metadata(engine: Engine) -> tuple[list, list]:
     return sorted(show_names), sorted(hosts)
 
 
+def clean_llm_response(response: str) -> str:
+    """Clean common LLM inconsistencies in the response."""
+    response = response.split("</think>")[-1]
+    response = _sub_squotes("'", response)
+    response = _sub_dquotes('"', response)
+    return response.strip()
+
+
+# --- CORE FUNCTIONS ---
 def _parse_shows(query: str, show_names: list) -> list:
     try:
-        get_shows_response = JSON_LLM.invoke(
+        get_shows_response = llm.invoke(
             GET_SHOWS_PROMPT.format(
                 query=query,
                 show_names=", ".join(show_names),
             )
         )
+        get_shows_response = clean_llm_response(get_shows_response)
         print("    Shows found:\n", get_shows_response)
-
         get_shows_data = json.loads(get_shows_response)
-
         return get_shows_data.get("shows", [])
-
     except Exception as e:
         print(f" !! Error while parsing shows:\n{e}\n")
 
@@ -389,13 +397,14 @@ def _parse_shows(query: str, show_names: list) -> list:
 
 def _parse_hosts(query: str, hosts: list) -> list:
     try:
-        get_hosts_response = JSON_LLM.invoke(
+        get_hosts_response = llm.invoke(
             GET_HOSTS_PROMPT.format(
                 query=query,
                 hosts=", ".join(hosts),
                 primary_hosts=PRIMARY_HOSTS,
             )
         )
+        get_hosts_response = clean_llm_response(get_hosts_response)
         print("    Hosts found:\n", get_hosts_response)
         get_hosts_data = json.loads(get_hosts_response)
         return get_hosts_data.get("hosts", [])
@@ -408,17 +417,23 @@ def _parse_hosts(query: str, hosts: list) -> list:
 def _parse_year_range(query: str) -> tuple[list, list]:
     try:
         current_year = datetime.now().year
-        response = JSON_LLM.invoke(
+        get_year_response = llm.invoke(
             GET_YEARS_PROMPT.format(
                 query=query,
                 year=current_year,
             )
         )
 
-        parsed_data = json.loads(response)
+        get_year_response = clean_llm_response(get_year_response)
+
+        if not get_year_response:
+            print("no year found")
+            return [], []
+
+        parsed_data = json.loads(get_year_response)
 
         if parsed_data.get("exact_year", None) != "NOT_FOUND":
-            print("  ...exact year found", parsed_data["exact_year"])
+            print("exact year found:", parsed_data["exact_year"])
             year = parsed_data["exact_year"]
             return [
                 {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
@@ -426,7 +441,7 @@ def _parse_year_range(query: str) -> tuple[list, list]:
             ], [year]
 
         if parsed_data.get("year_range", None) != "NOT_FOUND":
-            print("  ...year range found:\n", parsed_data["year_range"])
+            print("year range found:", parsed_data["year_range"])
             _range = parsed_data["year_range"].split("-")
             start = _range[0]
             end = _range[1]
@@ -436,7 +451,7 @@ def _parse_year_range(query: str) -> tuple[list, list]:
             ], [start, end]
 
         if parsed_data.get("before_year", None) != "NOT_FOUND":
-            print("  ...before year found", parsed_data["before_year"])
+            print("before year found:", parsed_data["before_year"])
             year = int(parsed_data["before_year"]) - 1
             return [
                 {"published_at": {"$gte": "2012-01-01T00:00:00"}},
@@ -444,15 +459,16 @@ def _parse_year_range(query: str) -> tuple[list, list]:
             ], [str(year)]
 
         if parsed_data.get("after_year", None) != "NOT_FOUND":
-            print("  ...after year found", parsed_data["after_year"])
+            print("after year found:", parsed_data["after_year"])
             year = int(parsed_data["after_year"]) + 1
             return [
                 {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
                 {"published_at": {"$lte": f"{current_year}-12-31T23:59:59"}},
             ], [str(year)]
     except Exception as e:
-        print(f" !! Error while parsing year range:\n{e}\n")
+        print(f"\n !! Error while parsing year range:\n{e}\n")
 
+    print("no year found")
     return [], []
 
 
@@ -464,14 +480,14 @@ def _parse_topics(
 ) -> list:
     try:
         metadata = show_filter + hosts_filter + years
-        get_topics_response = JSON_LLM.invoke(
+        get_topics_response = llm.invoke(
             GET_TOPICS_PROMPT.format(
                 query=query,
                 metadata=", ".join(metadata),
             )
         )
+        get_topics_response = clean_llm_response(get_topics_response)
         print("    Topics found:\n", get_topics_response)
-
         get_topics_data = json.loads(get_topics_response)
         topics = get_topics_data["topics"]
         return [t for t in topics if t not in metadata]
@@ -532,7 +548,7 @@ def get_filter(
     print(" -> Parsing hosts...")
     hosts_list = _parse_hosts(query, hosts)
 
-    print(" -> Parsing year range...")
+    print(" -> Parsing year range...", end="")
     year_filter, years = _parse_year_range(query)
 
     print(" -> Parsing topics...")
