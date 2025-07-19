@@ -1,7 +1,7 @@
 import mysql.connector
 import sqlite3
 
-import config
+from .config import DB_DATABASE, DB_HOST, DB_PASSWORD, DB_USER, SQLITE_DB_PATH
 
 
 def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
@@ -108,13 +108,13 @@ def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
 def create_local_sqlite_db():
     # MySQL config
     mysql_config = {
-        "host": config.DB_HOST,
-        "user": config.DB_USER,
-        "password": config.DB_PASSWORD,
-        "database": config.DB_DATABASE,
+        "host": DB_HOST,
+        "user": DB_USER,
+        "password": DB_PASSWORD,
+        "database": DB_DATABASE,
     }
 
-    _export_mysql_to_sqlite(mysql_config, config.SQLITE_DB_PATH)
+    _export_mysql_to_sqlite(mysql_config, SQLITE_DB_PATH)
 
 
 def get_video_db_data(sqlite_db, video_ids=None):

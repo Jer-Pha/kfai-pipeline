@@ -4,14 +4,14 @@ from json import dump
 from os import makedirs, path
 from datetime import date
 
-import config
+from .config import YOUTUBE_API_KEY
 from transcript import chunk_transcript_with_overlap, get_raw_transcript_data
 from utils import date_to_timestamp, duration_to_seconds
 
 
 def get_youtube_data(video_ids):
     """Fetches video data using the YouTube API, handling the 50 ID limit."""
-    youtube = ytapi.build("youtube", "v3", developerKey=config.YOUTUBE_API_KEY)
+    youtube = ytapi.build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
     all_video_data = {}
 
