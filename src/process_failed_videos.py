@@ -5,7 +5,6 @@ from kfai_helpers.db import get_video_db_data
 from kfai_helpers.video import get_youtube_data
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
-videos_ids_to_skip = tuple()
 
 if __name__ == "__main__":
     try:
