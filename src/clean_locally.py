@@ -2,10 +2,11 @@ import os
 import json
 import logging
 import re
-import time
 from langchain_ollama import OllamaLLM
 from tqdm import tqdm
 from traceback import format_exc
+
+from kfai_helpers.types import CompleteVideoRecord
 
 
 # --- CONFIGURATION ---
@@ -101,7 +102,7 @@ def _get_file_paths(root: str, filename: str) -> tuple[str, str, str]:
     return raw_path, relative_path, cleaned_path
 
 
-def _load_raw_data(raw_path: str) -> dict:
+def _load_raw_data(raw_path: str) -> CompleteVideoRecord | None:
     """Loads and returns the JSON data from a given file path."""
     try:
         with open(raw_path, "r", encoding="utf-8") as f:
@@ -109,11 +110,13 @@ def _load_raw_data(raw_path: str) -> dict:
     except (json.JSONDecodeError, IOError):
         logger.error(f"Failed to load or parse source file: {raw_path}")
         logger.error(format_exc())
-        return {}
+        return None
 
 
 def _check_data_integrity(
-    raw_data: dict, cleaned_data: dict, relative_path: str
+    raw_data: CompleteVideoRecord,
+    cleaned_data: CompleteVideoRecord,
+    relative_path: str,
 ) -> bool:
     """Performs data integrity checks and returns True if all pass."""
     if not cleaned_data or set(cleaned_data.keys()) != set(raw_data.keys()):
@@ -137,7 +140,9 @@ def _check_data_integrity(
     return True
 
 
-def _save_cleaned_data(cleaned_path: str, cleaned_video_data: dict) -> bool:
+def _save_cleaned_data(
+    cleaned_path: str, cleaned_video_data: CompleteVideoRecord
+) -> bool:
     """Saves the cleaned data to a JSON file, creating directories if needed."""
     try:
         cleaned_dir = os.path.dirname(cleaned_path)
@@ -152,7 +157,7 @@ def _save_cleaned_data(cleaned_path: str, cleaned_video_data: dict) -> bool:
         return False
 
 
-def _clean_text_chunk(text):
+def _clean_text_chunk(text: str) -> str:
     # Fix transcript profanity reference
     text = _sub_profanity("****", text)
 
@@ -179,16 +184,20 @@ def _clean_response(response: str) -> str:
 
 
 # --- CORE FUNCTION ---
-def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
+def _clean_transcript(
+    video_data: CompleteVideoRecord, relative_path: str
+) -> CompleteVideoRecord | None:
     """Cleans a video's transcript with Ollama, one chunk at a time."""
     try:
-        profile_start = time.time()
-
         chunk_count = len(video_data["transcript_chunks"])
         cleaned_video_data = {
             k: v for k, v in video_data.items() if k != "transcript_chunks"
         }
-        metadata = json.dumps(cleaned_video_data)
+        metadata = (
+            json.dumps(cleaned_video_data)
+            .replace("{", "{{")
+            .replace("}", "}}")
+        )  # Escape brackets for `user_prompt_template.format(chunk=text)`
         cleaned_video_data["transcript_chunks"] = []
 
         _invoke_llm = llm.invoke
@@ -199,13 +208,13 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
             unit="chunk",
         )
 
+        user_prompt_template = USER_PROMPT.format(
+            metadata=metadata, chunk="{chunk}"
+        )
+
         for chunk in video_data["transcript_chunks"]:
             text = _clean_text_chunk(chunk["text"])
-
-            user_prompt = USER_PROMPT.format(
-                metadata=metadata,
-                chunk=text,
-            )
+            user_prompt = user_prompt_template.format(chunk=text)
 
             try:
                 response = _invoke_llm(
@@ -241,7 +250,6 @@ def _clean_transcript(video_data: dict, relative_path: str) -> dict | None:
                 return None
 
         progress_bar.close()
-        profile_end = time.time()
 
         return cleaned_video_data
     except:
@@ -289,7 +297,7 @@ if __name__ == "__main__":
                 video_data = _load_raw_data(raw_path)
 
                 # Skip videos that don't have a transcript
-                if not video_data.get("transcript_chunks"):
+                if not video_data or not video_data.get("transcript_chunks"):
                     logger.warning(f"{raw_path} does not have a transcript.")
                     continue
 

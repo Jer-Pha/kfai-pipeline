@@ -3,6 +3,7 @@ import json
 import time
 from sqlalchemy import create_engine, text
 from langchain.schema.document import Document
+from langchain.vectorstores import VectorStore
 from langchain_postgres import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -20,7 +21,9 @@ BATCH_SIZE = 256  # Number of documents to process and insert at a time
 
 
 # --- Helper Function ---
-def get_processed_chunk_ids(vectorstore):
+def get_processed_chunk_ids(
+    vectorstore: VectorStore,
+) -> set[tuple[str, float]]:
     """
     Gets a set of already processed chunk IDs (video_id, start_time)
     by querying the LangChain collection's metadata.

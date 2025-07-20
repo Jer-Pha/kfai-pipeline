@@ -1,10 +1,14 @@
 import mysql.connector
 import sqlite3
+from typing import Iterable, Optional
 
 from .config import DB_DATABASE, DB_HOST, DB_PASSWORD, DB_USER, SQLITE_DB_PATH
+from .types import MySQLConfig, RawVideoRecord
 
 
-def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
+def _export_mysql_to_sqlite(
+    mysql_config: MySQLConfig, sqlite_db_path: str
+) -> None:
     """Exports relevant data from a MySQL database to an SQLite database."""
     mysql_conn, sqlite_conn = None, None
     try:
@@ -27,7 +31,6 @@ def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
             )
         """
         )
-
         sqlite_cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS shows_show (
@@ -36,7 +39,6 @@ def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
             )
         """
         )
-
         sqlite_cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS hosts_host (
@@ -45,7 +47,6 @@ def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
             )
         """
         )
-
         sqlite_cursor.execute(
             """
           CREATE TABLE IF NOT EXISTS videos_video_hosts(
@@ -105,7 +106,7 @@ def _export_mysql_to_sqlite(mysql_config, sqlite_db_path):
             sqlite_conn.close()
 
 
-def create_local_sqlite_db():
+def create_local_sqlite_db() -> None:
     # MySQL config
     mysql_config = {
         "host": DB_HOST,
@@ -114,10 +115,16 @@ def create_local_sqlite_db():
         "database": DB_DATABASE,
     }
 
-    _export_mysql_to_sqlite(mysql_config, SQLITE_DB_PATH)
+    # SQLite config
+    sqlite_db_path = SQLITE_DB_PATH
+
+    _export_mysql_to_sqlite(mysql_config, sqlite_db_path)
 
 
-def get_video_db_data(sqlite_db, video_ids=None):
+def get_video_db_data(
+    sqlite_db: str,
+    video_ids: Optional[Iterable[str]] = None,
+) -> list[RawVideoRecord]:
     """
     Fetches video metadata from the SQLite database.
     If video_ids is provided, fetches data only for those IDs.

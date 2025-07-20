@@ -6,6 +6,7 @@ from sqlalchemy import text, Engine
 from traceback import format_exc
 
 from .config import POSTGRES_DB_PATH
+from .types import PGVectorFilter, PGVectorPublishedAt
 
 # --- CONFIGURATION ---
 POSTGRES_DB_PATH = POSTGRES_DB_PATH
@@ -332,7 +333,7 @@ GET_TOPICS_PROMPT = """
 
 
 # --- HELPER FUNCTIONS ---
-def get_unique_metadata(engine: Engine) -> tuple[list, list]:
+def get_unique_metadata(engine: Engine) -> tuple[list[str], list[str]]:
     """Queries the database to get all unique show names and hosts."""
     show_names = set()
     hosts = set()
@@ -377,7 +378,7 @@ def clean_llm_response(response: str) -> str:
 
 
 # --- CORE FUNCTIONS ---
-def _parse_shows(query: str, show_names: list) -> list:
+def _parse_shows(query: str, show_names: list[str]) -> list[str | None]:
     try:
         get_shows_response = llm.invoke(
             GET_SHOWS_PROMPT.format(
@@ -395,7 +396,7 @@ def _parse_shows(query: str, show_names: list) -> list:
     return []
 
 
-def _parse_hosts(query: str, hosts: list) -> list:
+def _parse_hosts(query: str, hosts: list[str]) -> list[str | None]:
     try:
         get_hosts_response = llm.invoke(
             GET_HOSTS_PROMPT.format(
@@ -414,7 +415,9 @@ def _parse_hosts(query: str, hosts: list) -> list:
     return []
 
 
-def _parse_year_range(query: str) -> tuple[list, list]:
+def _parse_year_range(
+    query: str,
+) -> tuple[list[PGVectorPublishedAt | None], list[str | None]]:
     try:
         current_year = datetime.now().year
         get_year_response = llm.invoke(
@@ -474,10 +477,10 @@ def _parse_year_range(query: str) -> tuple[list, list]:
 
 def _parse_topics(
     query: str,
-    show_filter: list,
-    hosts_filter: list,
-    years: list,
-) -> list:
+    show_filter: list[str | None],
+    hosts_filter: list[str | None],
+    years: list[str | None],
+) -> list[str | None]:
     try:
         metadata = show_filter + hosts_filter + years
         get_topics_response = llm.invoke(
@@ -500,24 +503,25 @@ def _parse_topics(
 
 
 def _build_filter(
-    show_filter: list,
-    hosts_filter: list,
-    year_filter: tuple,
-    topics_list: list,
-) -> dict | None:
+    shows_list: list[str | None],
+    hosts_list: list[str | None],
+    year_filter: tuple[list[PGVectorPublishedAt | None], list[str | None]],
+    topics_list: list[str | None],
+) -> PGVectorFilter | None:
     """Convert to filter for PGVector retriever"""
     print("  -> Combining filter...")
     filter_conditions = []
 
-    if show_filter:
-        filter_conditions.append({"show_name": {"$in": show_filter}})
+    if shows_list:
+        filter_conditions.append({"show_name": {"$in": shows_list}})
 
-    for host in hosts_filter:
+    for host in hosts_list:
         host = re.sub(r"([%_])", r"\\\1", host)
         filter_conditions.append({"hosts": {"$like": f"%{host}%"}})
 
     for filter in year_filter:
-        filter_conditions.append(filter)
+        if filter:
+            filter_conditions.append(filter)
 
     topic_filters = []
     for topic in topics_list:
@@ -537,8 +541,8 @@ def _build_filter(
 
 
 def get_filter(
-    query: str, show_names: list, hosts: list
-) -> tuple[str, dict | None]:
+    query: str, show_names: list[str], hosts: list[str]
+) -> tuple[str, PGVectorFilter | None]:
     print("Building filter...")
     print(f"  Model: {MODEL}")
 

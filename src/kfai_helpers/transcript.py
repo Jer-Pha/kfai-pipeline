@@ -1,11 +1,16 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from youtube_transcript_api import YouTubeTranscriptApi
 
+from .types import TranscriptChunk, TranscriptSnippet
 
-def get_raw_transcript_data(video_id):
+
+def get_raw_transcript_data(
+    video_id: str,
+) -> list[TranscriptSnippet] | str | None:
     """
     Fetches the raw transcript data from the YouTube Transcript API.
-    Returns a list of snippet dictionaries, each with 'text', 'start', and 'duration'.
+    Returns a list of snippet dictionaries, each with 'text', 'start',
+    and 'duration'.
     """
     try:
         transcript_list = YouTubeTranscriptApi.get_transcript(
@@ -74,8 +79,10 @@ def get_raw_transcript_data(video_id):
 
 
 def chunk_transcript_with_overlap(
-    transcript_data, chunk_size=1000, chunk_overlap=200
-):
+    transcript_data: list[TranscriptSnippet],
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200,
+) -> list[TranscriptChunk]:
     """
     Chunks a transcript into overlapping, semantically aware pieces,
     while preserving the start timestamp for each chunk.
@@ -86,7 +93,8 @@ def chunk_transcript_with_overlap(
         chunk_overlap: The amount of overlap between chunks (in characters).
 
     Returns:
-        A list of dictionaries, where each dict is a chunk with 'text', 'start', and 'end'.
+        A list of dictionaries, where each dict is a chunk with 'text'
+        and 'start'.
     """
     if not transcript_data:
         return []
@@ -98,7 +106,7 @@ def chunk_transcript_with_overlap(
 
     for snippet in transcript_data:
         start_time = snippet["start"]
-        text = snippet["text"].strip() + " "  # Add space for joining
+        text = snippet.get("text", "").strip() + " "  # Add space for joining
 
         # Store the start time for the beginning of this snippet's text
         char_to_time_map.append((len(full_text), start_time))
