@@ -5,6 +5,8 @@ from isodate.duration import Duration
 
 def date_to_timestamp(data: str) -> int:
     """Converts YouTube API ISO datetime to Unix epoch timestamp."""
+    if not data:
+        return 0
     return int(datetime.fromisoformat(data.replace("Z", "+00:00")).timestamp())
 
 
@@ -13,7 +15,7 @@ def duration_to_seconds(duration: Duration) -> int:
     return int(parse_duration(duration).total_seconds())
 
 
-def format_duration(seconds: int) -> str:
+def format_duration(seconds: float) -> str:
     """Formats a duration in seconds into hours, minutes, and seconds."""
     hours = int(seconds // 3600)  # Integer division for hours
     minutes = int((seconds % 3600)) // 60  # Remaining seconds for minutes

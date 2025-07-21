@@ -4,15 +4,20 @@ from datetime import datetime
 from langchain_ollama import OllamaLLM
 from sqlalchemy import text, Engine
 from traceback import format_exc
+from typing import Union
 
-from .config import POSTGRES_DB_PATH
-from .types import PGVectorFilter, PGVectorPublishedAt
+from .config import PARSING_MODEL, POSTGRES_DB_PATH
+from .types import (
+    PGVectorHosts,
+    PGVectorPublishedAt,
+    PGVectorShowName,
+    PGVectorText,
+)
 
 # --- CONFIGURATION ---
 POSTGRES_DB_PATH = POSTGRES_DB_PATH
-MODEL = "qwen3:14b-q4_K_M"
 llm = OllamaLLM(
-    model=MODEL,
+    model=PARSING_MODEL,
     temperature=0.1,
     top_p=0.92,
     top_k=25,
@@ -378,7 +383,7 @@ def clean_llm_response(response: str) -> str:
 
 
 # --- CORE FUNCTIONS ---
-def _parse_shows(query: str, show_names: list[str]) -> list[str | None]:
+def _parse_shows(query: str, show_names: list[str]) -> list[str]:
     try:
         get_shows_response = llm.invoke(
             GET_SHOWS_PROMPT.format(
@@ -388,15 +393,16 @@ def _parse_shows(query: str, show_names: list[str]) -> list[str | None]:
         )
         get_shows_response = clean_llm_response(get_shows_response)
         print("    Shows found:\n", get_shows_response)
-        get_shows_data = json.loads(get_shows_response)
-        return get_shows_data.get("shows", [])
+        get_shows_data = dict(json.loads(get_shows_response))
+        shows_data: list[str] = get_shows_data.get("shows", [])
+        return shows_data
     except Exception as e:
         print(f" !! Error while parsing shows:\n{e}\n")
 
     return []
 
 
-def _parse_hosts(query: str, hosts: list[str]) -> list[str | None]:
+def _parse_hosts(query: str, hosts: list[str]) -> list[str]:
     try:
         get_hosts_response = llm.invoke(
             GET_HOSTS_PROMPT.format(
@@ -407,8 +413,9 @@ def _parse_hosts(query: str, hosts: list[str]) -> list[str | None]:
         )
         get_hosts_response = clean_llm_response(get_hosts_response)
         print("    Hosts found:\n", get_hosts_response)
-        get_hosts_data = json.loads(get_hosts_response)
-        return get_hosts_data.get("hosts", [])
+        get_hosts_data = dict(json.loads(get_hosts_response))
+        hosts_data: list[str] = get_hosts_data.get("hosts", [])
+        return hosts_data
     except Exception as e:
         print(f" !! Error while parsing hosts:\n{e}\n")
 
@@ -417,7 +424,7 @@ def _parse_hosts(query: str, hosts: list[str]) -> list[str | None]:
 
 def _parse_year_range(
     query: str,
-) -> tuple[list[PGVectorPublishedAt | None], list[str | None]]:
+) -> tuple[list[PGVectorPublishedAt], list[str]]:
     try:
         current_year = datetime.now().year
         get_year_response = llm.invoke(
@@ -433,54 +440,58 @@ def _parse_year_range(
             print("no year found")
             return [], []
 
-        parsed_data = json.loads(get_year_response)
+        parsed_data = dict(json.loads(get_year_response))
+
+        filter_gte: dict[str, str] = {"$gte": ""}
+        filter_lte: dict[str, str] = {"$lte": ""}
+        years: list[str] = []
 
         if parsed_data.get("exact_year", None) != "NOT_FOUND":
             print("exact year found:", parsed_data["exact_year"])
             year = parsed_data["exact_year"]
-            return [
-                {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
-                {"published_at": {"$lte": f"{year}-12-31T23:59:59"}},
-            ], [year]
-
-        if parsed_data.get("year_range", None) != "NOT_FOUND":
+            filter_gte["$gte"] = f"{year}-01-01T00:00:00"
+            filter_lte["$lte"] = f"{year}-12-31T23:59:59"
+            years.append(year)
+        elif parsed_data.get("year_range", None) != "NOT_FOUND":
             print("year range found:", parsed_data["year_range"])
             _range = parsed_data["year_range"].split("-")
             start = _range[0]
             end = _range[1]
-            return [
-                {"published_at": {"$gte": f"{start}-01-01T00:00:00"}},
-                {"published_at": {"$lte": f"{end}-12-31T23:59:59"}},
-            ], [start, end]
-
-        if parsed_data.get("before_year", None) != "NOT_FOUND":
+            filter_gte["$gte"] = f"{start}-01-01T00:00:00"
+            filter_lte["$lte"] = f"{end}-12-31T23:59:59"
+            years.append(start)
+            years.append(end)
+        elif parsed_data.get("before_year", None) != "NOT_FOUND":
             print("before year found:", parsed_data["before_year"])
-            year = int(parsed_data["before_year"]) - 1
-            return [
-                {"published_at": {"$gte": "2012-01-01T00:00:00"}},
-                {"published_at": {"$lte": f"{year}-12-31T23:59:59"}},
-            ], [str(year)]
-
-        if parsed_data.get("after_year", None) != "NOT_FOUND":
+            year = str(int(parsed_data["before_year"]) - 1)
+            filter_gte["$gte"] = "2012-01-01T00:00:00"
+            filter_lte["$lte"] = f"{year}-12-31T23:59:59"
+            years.append(year)
+        elif parsed_data.get("after_year", None) != "NOT_FOUND":
             print("after year found:", parsed_data["after_year"])
-            year = int(parsed_data["after_year"]) + 1
-            return [
-                {"published_at": {"$gte": f"{year}-01-01T00:00:00"}},
-                {"published_at": {"$lte": f"{current_year}-12-31T23:59:59"}},
-            ], [str(year)]
+            year = str(int(parsed_data["after_year"]) + 1)
+            filter_gte["$gte"] = f"{year}-01-01T00:00:00"
+            filter_lte["$lte"] = f"{current_year}-12-31T23:59:59"
+            years.append(year)
+        else:
+            print("no year found")
+            return [], []
+
+        return [{"published_at": filter_gte}, {"published_at": filter_lte}], [
+            *years
+        ]
+
     except Exception as e:
         print(f"\n !! Error while parsing year range:\n{e}\n")
-
-    print("no year found")
-    return [], []
+        return [], []
 
 
 def _parse_topics(
     query: str,
-    show_filter: list[str | None],
-    hosts_filter: list[str | None],
-    years: list[str | None],
-) -> list[str | None]:
+    show_filter: list[str],
+    hosts_filter: list[str],
+    years: list[str],
+) -> list[str]:
     try:
         metadata = show_filter + hosts_filter + years
         get_topics_response = llm.invoke(
@@ -503,27 +514,49 @@ def _parse_topics(
 
 
 def _build_filter(
-    shows_list: list[str | None],
-    hosts_list: list[str | None],
-    year_filter: tuple[list[PGVectorPublishedAt | None], list[str | None]],
-    topics_list: list[str | None],
-) -> PGVectorFilter | None:
+    shows_list: list[str],
+    hosts_list: list[str],
+    year_filter: list[PGVectorPublishedAt],
+    topics_list: list[str],
+) -> (
+    dict[
+        str,
+        list[
+            Union[
+                PGVectorShowName,
+                PGVectorHosts,
+                PGVectorPublishedAt,
+                dict[str, list[PGVectorText]],
+            ]
+        ],
+    ]
+    | None
+):
     """Convert to filter for PGVector retriever"""
     print("  -> Combining filter...")
-    filter_conditions = []
+    filter_conditions: list[
+        Union[
+            PGVectorShowName,
+            PGVectorHosts,
+            PGVectorPublishedAt,
+            dict[str, list[PGVectorText]],
+        ]
+    ] = []
 
     if shows_list:
-        filter_conditions.append({"show_name": {"$in": shows_list}})
+        show_filter: PGVectorShowName = {"show_name": {"$in": shows_list}}
+        filter_conditions.append(show_filter)
 
     for host in hosts_list:
         host = re.sub(r"([%_])", r"\\\1", host)
-        filter_conditions.append({"hosts": {"$like": f"%{host}%"}})
+        host_filter: PGVectorHosts = {"hosts": {"$like": f"%{host}%"}}
+        filter_conditions.append(host_filter)
 
     for filter in year_filter:
         if filter:
             filter_conditions.append(filter)
 
-    topic_filters = []
+    topic_filters: list[PGVectorText] = []
     for topic in topics_list:
         if not topic.strip():
             continue
@@ -540,11 +573,23 @@ def _build_filter(
     return None
 
 
-def get_filter(
-    query: str, show_names: list[str], hosts: list[str]
-) -> tuple[str, PGVectorFilter | None]:
+def get_filter(query: str, show_names: list[str], hosts: list[str]) -> tuple[
+    str,
+    dict[
+        str,
+        list[
+            Union[
+                PGVectorShowName,
+                PGVectorHosts,
+                PGVectorPublishedAt,
+                dict[str, list[PGVectorText]],
+            ]
+        ],
+    ]
+    | None,
+]:
     print("Building filter...")
-    print(f"  Model: {MODEL}")
+    print(f"  Model: {PARSING_MODEL}")
 
     print(" -> Parsing shows...")
     shows_list = _parse_shows(query, show_names)

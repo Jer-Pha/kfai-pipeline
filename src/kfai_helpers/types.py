@@ -2,69 +2,20 @@ from typing import Optional, TypedDict, Union
 
 
 # --- parse_query.py ---
-class PGVectorFilterGte(TypedDict):
-    __annotations__ = {
-        "$gte": str,
-    }
-
-
-class PGVectorFilterLte(TypedDict):
-    __annotations__ = {
-        "$lte": str,
-    }
-
-
-class PGVectorFilterIn(TypedDict):
-    __annotations__ = {
-        "$in": list[str],
-    }
-
-
-class PGVectorFilterLike(TypedDict):
-    __annotations__ = {
-        "$like": str,
-    }
-
-
-class PGVectorFilterILike(TypedDict):
-    __annotations__ = {
-        "$ilike": str,
-    }
-
-
 class PGVectorText(TypedDict):
-    text: PGVectorFilterILike
+    text: dict[str, str]
 
 
 class PGVectorShowName(TypedDict):
-    show_name: PGVectorFilterIn
+    show_name: dict[str, list[str]]
 
 
 class PGVectorHosts(TypedDict):
-    hosts: PGVectorFilterLike
+    hosts: dict[str, str]
 
 
 class PGVectorPublishedAt(TypedDict):
-    published_at: PGVectorFilterGte | PGVectorFilterLte
-
-
-class PGVectorFilterOr(TypedDict):
-    __annotations__ = {
-        "$or": list[PGVectorText],
-    }
-
-
-class PGVectorFilter(TypedDict):
-    __annotations__ = {
-        "$and": list[
-            Union[
-                PGVectorShowName,
-                PGVectorHosts,
-                PGVectorPublishedAt,
-                PGVectorFilterOr,
-            ]
-        ],
-    }
+    published_at: dict[str, str]
 
 
 # --- db.py ---
@@ -102,13 +53,5 @@ class VideoMetadata(TypedDict):
     duration: int
 
 
-class CompleteVideoRecord(TypedDict):
-    id: int
-    video_id: str
-    show_name: str
-    hosts: list[str]
-    title: str
-    description: str
-    published_at: int
-    duration: int
+class CompleteVideoRecord(RawVideoRecord, VideoMetadata):
     transcript_chunks: Optional[list[TranscriptChunk]]

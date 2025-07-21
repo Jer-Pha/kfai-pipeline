@@ -22,10 +22,8 @@ POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
 COLLECTION_TABLE = "video_transcript_chunks"
 CONTEXT_COUNT = 100
 EMBEDDING_COLUMN = "embedding"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-QA_MODEL = "qwen3:14b-q4_K_M"
 llm = OllamaLLM(
-    model=QA_MODEL,
+    model=config.QA_MODEL,
     temperature=0.4,
     top_p=0.95,
     top_k=50,
@@ -70,7 +68,7 @@ if __name__ == "__main__":
     # 1. Initialize embeddings and vector store connection
     print(" -> Connecting to vector store and initializing embedding model...")
     start_time = time.time()
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
     vector_store = PGVector(
         connection=POSTGRES_DB_PATH,
         collection_name=COLLECTION_TABLE,
@@ -101,7 +99,7 @@ if __name__ == "__main__":
         "\n--- KFAI Agent is ready."
         f" Setup took {format_duration(end_time - start_time)}. ---"
     )
-    print(f"Model: {QA_MODEL}")
+    print(f"Model: {config.QA_MODEL}")
 
     # 5. Start the Interactive Query Loop
     while True:

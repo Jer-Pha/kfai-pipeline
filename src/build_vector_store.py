@@ -3,7 +3,6 @@ import json
 import time
 from sqlalchemy import create_engine, text
 from langchain.schema.document import Document
-from langchain.vectorstores import VectorStore
 from langchain_postgres import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -16,13 +15,12 @@ DB_CONNECTION_STRING = config.POSTGRES_DB_PATH
 # For now, we point to the raw data. Later, you'll change this.
 JSON_SOURCE_DIR = "videos"
 COLLECTION_NAME = "video_transcript_chunks"  # A clear, unique name for your LangChain collection
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 BATCH_SIZE = 256  # Number of documents to process and insert at a time
 
 
 # --- Helper Function ---
 def get_processed_chunk_ids(
-    vectorstore: VectorStore,
+    vectorstore: PGVector,
 ) -> set[tuple[str, float]]:
     """
     Gets a set of already processed chunk IDs (video_id, start_time)
@@ -32,9 +30,7 @@ def get_processed_chunk_ids(
     # This is a bit of a workaround to access the underlying connection
     # as LangChain's PGVector doesn't have a built-in "list all" method.
     try:
-        with create_engine(
-            vectorstore.connection_string
-        ).connect() as connection:
+        with create_engine(DB_CONNECTION_STRING).connect() as connection:
             # Query the cmetadata column of the embedding table for this collection
             stmt = text(
                 f"""
@@ -70,11 +66,11 @@ def get_processed_chunk_ids(
 if __name__ == "__main__":
     # 1. Initialize Connections
     print("Initializing database connection and embedding model...")
-    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
     vectorstore = PGVector(
-        connection_string=DB_CONNECTION_STRING,
+        connection=DB_CONNECTION_STRING,
         collection_name=COLLECTION_NAME,
-        embedding_function=embeddings,
+        embeddings=embeddings,
     )
     print("Initialization successful.")
 

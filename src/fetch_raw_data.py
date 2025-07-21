@@ -2,9 +2,11 @@ import json
 import os
 from random import uniform
 from time import sleep
+from typing import cast
 
 import kfai_helpers.config as config
 from kfai_helpers.db import create_local_sqlite_db, get_video_db_data
+from kfai_helpers.types import CompleteVideoRecord
 from kfai_helpers.video import get_youtube_data, process_video
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
@@ -61,7 +63,7 @@ if __name__ == "__main__":
                 processed_video_ids.add(video_id)
 
     # Find the difference and convert it to a tuple
-    new_video_ids = tuple(
+    new_video_ids = list(
         db_video_ids.difference(processed_video_ids.union(videos_ids_to_skip))
     )
 
@@ -78,43 +80,51 @@ if __name__ == "__main__":
         # Enrich with data from the YouTube API
         youtube_api_data = get_youtube_data(new_video_ids)
 
-        # Process and save
-        for video in new_video_metadata:
-            video_id = video["video_id"]
+        if youtube_api_data is not None:
+            # Process and save
+            for video in new_video_metadata:
+                video_id = video["video_id"]
 
-            if video_id in videos_ids_to_skip:
-                continue
+                if video_id in videos_ids_to_skip:
+                    continue
 
-            if video_id in youtube_api_data:
-                # Merge the DB data with the YouTube API data
-                video.update(youtube_api_data[video_id])
+                if video_id in youtube_api_data:
+                    # Merge the DB data with the YouTube API data
+                    video_record = cast(
+                        CompleteVideoRecord,
+                        dict(video) | youtube_api_data[video_id],
+                    )
 
-                # Rate limiting
-                sleep_duration = uniform(2, 5)  # Wait 2 to 5 seconds
-                print(
-                    f"   ...waiting for {sleep_duration:.2f} seconds to avoid"
-                    " rate-limiting."
-                )
-                sleep(sleep_duration)
+                    # Rate limiting
+                    sleep_duration = uniform(2, 5)  # Wait 2 to 5 seconds
+                    print(
+                        f"   ...waiting for {sleep_duration:.2f} seconds to avoid"
+                        " rate-limiting."
+                    )
+                    sleep(sleep_duration)
 
-                # Process video
-                print(f"Processing video: {video_id}")
-                skip_next_run = process_video(video, output_directory)
-                if skip_next_run:
-                    videos_ids_to_skip.add(video_id)
-                    try:
-                        with open(VIDEOS_TO_SKIP_FILE, "w") as f:
-                            # Convert the set to a list to make it JSON-serializable
-                            json.dump(list(videos_ids_to_skip), f, indent=4)
-                    except IOError as e:
-                        print(
-                            "FATAL: Could not write to log"
-                            f" file {VIDEOS_TO_SKIP_FILE}. Error: {e}"
-                        )
-            else:
-                print(
-                    "Warning: Could not find YouTube API data for new video"
-                    f" ID: {video_id}"
-                )
+                    # Process video
+                    print(f"Processing video: {video_id}")
+                    skip_next_run = process_video(
+                        video_record, output_directory
+                    )
+                    if skip_next_run:
+                        videos_ids_to_skip.add(video_id)
+                        try:
+                            with open(VIDEOS_TO_SKIP_FILE, "w") as f:
+                                # Convert the set to a list to make it JSON-serializable
+                                json.dump(
+                                    list(videos_ids_to_skip), f, indent=4
+                                )
+                        except IOError as e:
+                            print(
+                                "FATAL: Could not write to log"
+                                f" file {VIDEOS_TO_SKIP_FILE}. Error: {e}"
+                            )
+                else:
+                    print(
+                        "Warning: Could not find YouTube API data for new video"
+                        f" ID: {video_id}"
+                    )
 
     print("Processing complete.")

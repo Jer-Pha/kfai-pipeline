@@ -6,22 +6,24 @@ from langchain_ollama import OllamaLLM
 from tqdm import tqdm
 from traceback import format_exc
 
-from kfai_helpers.types import CompleteVideoRecord
+import kfai_helpers.config as config
+from kfai_helpers.types import CompleteVideoRecord, TranscriptChunk
 
 
 # --- CONFIGURATION ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
-OLLAMA_MODEL = "llama3.1:8b-instruct-q8_0"
 RAW_JSON_DIR = os.path.join(BASE_DIR, "videos")
-CLEANED_DIR_NAME = f"videos_cleaned_local-{OLLAMA_MODEL.split(":")[0]}"
+CLEANED_DIR_NAME = (
+    f"videos_cleaned_local-{config.CLEANING_MODEL.split(":")[0]}"
+)
 CLEANED_JSON_DIR = os.path.join(BASE_DIR, CLEANED_DIR_NAME)
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 
 # --- LLM SETUP ---
 llm = OllamaLLM(
-    model=OLLAMA_MODEL,
+    model=config.CLEANING_MODEL,
     temperature=0.1,
     top_p=0.92,
     top_k=40,
@@ -106,7 +108,8 @@ def _load_raw_data(raw_path: str) -> CompleteVideoRecord | None:
     """Loads and returns the JSON data from a given file path."""
     try:
         with open(raw_path, "r", encoding="utf-8") as f:
-            return dict(json.load(f))
+            video_data: CompleteVideoRecord = json.load(f)
+            return video_data
     except (json.JSONDecodeError, IOError):
         logger.error(f"Failed to load or parse source file: {raw_path}")
         logger.error(format_exc())
@@ -126,8 +129,12 @@ def _check_data_integrity(
         )
         return False
 
-    raw_chunk_count = len(raw_data["transcript_chunks"])
-    cleaned_chunk_count = len(cleaned_data["transcript_chunks"])
+    assert raw_data["transcript_chunks"] is not None
+    raw_transcript_chunks: list[TranscriptChunk] = raw_data[
+        "transcript_chunks"
+    ]
+    raw_chunk_count = len(raw_transcript_chunks)
+    cleaned_chunk_count = len(raw_transcript_chunks)
 
     if cleaned_chunk_count != raw_chunk_count:
         error_msg = (
@@ -189,16 +196,28 @@ def _clean_transcript(
 ) -> CompleteVideoRecord | None:
     """Cleans a video's transcript with Ollama, one chunk at a time."""
     try:
-        chunk_count = len(video_data["transcript_chunks"])
-        cleaned_video_data = {
-            k: v for k, v in video_data.items() if k != "transcript_chunks"
+        assert video_data["transcript_chunks"] is not None
+        transcript_chunks: list[TranscriptChunk] = video_data[
+            "transcript_chunks"
+        ]
+        chunk_count = len(transcript_chunks)
+        cleaned_video_data: CompleteVideoRecord = {
+            "id": video_data["id"],
+            "video_id": video_data["video_id"],
+            "show_name": video_data["show_name"],
+            "hosts": video_data["hosts"],
+            "title": video_data["title"],
+            "description": video_data["description"],
+            "published_at": video_data["published_at"],
+            "duration": video_data["duration"],
+            "transcript_chunks": [],
         }
+        assert cleaned_video_data["transcript_chunks"] is not None
         metadata = (
             json.dumps(cleaned_video_data)
             .replace("{", "{{")
             .replace("}", "}}")
         )  # Escape brackets for `user_prompt_template.format(chunk=text)`
-        cleaned_video_data["transcript_chunks"] = []
 
         _invoke_llm = llm.invoke
         _clean = _clean_response
@@ -212,7 +231,7 @@ def _clean_transcript(
             metadata=metadata, chunk="{chunk}"
         )
 
-        for chunk in video_data["transcript_chunks"]:
+        for chunk in transcript_chunks:
             text = _clean_text_chunk(chunk["text"])
             user_prompt = user_prompt_template.format(chunk=text)
 
@@ -228,13 +247,11 @@ def _clean_transcript(
                 )
 
                 response = _clean(response)
-
-                cleaned_video_data["transcript_chunks"].append(
-                    {
-                        "text": response.strip(),
-                        "start": chunk["start"],
-                    }
-                )
+                cleaned_chunk: TranscriptChunk = {
+                    "text": response.strip(),
+                    "start": chunk["start"],
+                }
+                cleaned_video_data["transcript_chunks"].append(cleaned_chunk)
                 progress_bar.update(1)
             except:
                 logger.error(
@@ -305,6 +322,7 @@ if __name__ == "__main__":
                 cleaned_video_data = _clean_transcript(
                     video_data, relative_path
                 )
+                assert cleaned_video_data is not None
 
                 # 6. Verify integrity of the cleaned data
                 data_is_valid = _check_data_integrity(

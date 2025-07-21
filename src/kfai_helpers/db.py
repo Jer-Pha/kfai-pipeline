@@ -108,7 +108,7 @@ def _export_mysql_to_sqlite(
 
 def create_local_sqlite_db() -> None:
     # MySQL config
-    mysql_config = {
+    mysql_config: MySQLConfig = {
         "host": DB_HOST,
         "user": DB_USER,
         "password": DB_PASSWORD,
@@ -123,7 +123,7 @@ def create_local_sqlite_db() -> None:
 
 def get_video_db_data(
     sqlite_db: str,
-    video_ids: Optional[Iterable[str]] = None,
+    video_ids: Optional[list[str]] = None,
 ) -> list[RawVideoRecord]:
     """
     Fetches video metadata from the SQLite database.
@@ -161,7 +161,7 @@ def get_video_db_data(
     conn.close()
 
     # Return raw database data
-    video_data = []
+    video_data: list[RawVideoRecord] = []
     for row in rows:
         video_data.append(
             {

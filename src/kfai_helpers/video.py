@@ -5,16 +5,16 @@ from os import makedirs, path
 from datetime import date
 
 from .config import YOUTUBE_API_KEY
-from .types import CompleteVideoRecord, VideoMetadata
-from transcript import chunk_transcript_with_overlap, get_raw_transcript_data
-from utils import date_to_timestamp, duration_to_seconds
+from .types import CompleteVideoRecord, TranscriptSnippet, VideoMetadata
+from .transcript import chunk_transcript_with_overlap, get_raw_transcript_data
+from .utils import date_to_timestamp, duration_to_seconds
 
 
 def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
     """Fetches video data using the YouTube API, handling the 50 ID limit."""
     yt_api = ytapi.build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
-    all_video_data = {}
+    all_video_data: dict[str, VideoMetadata] = {}
 
     try:
         for i in range(0, len(video_ids), 50):
@@ -26,7 +26,7 @@ def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
 
             if video_response.get("items"):
                 for item in video_response["items"]:
-                    video_id = item.get("id")
+                    video_id = item.get("id", "NO ID FOUND>")
                     snippet = item.get("snippet", {})
                     all_video_data[video_id] = {
                         "title": snippet.get("title", "<NO TITLE FOUND>"),
@@ -34,7 +34,7 @@ def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
                             "description", "<NO DESCRIPTION FOUND>"
                         ),
                         "published_at": date_to_timestamp(
-                            snippet.get("publishedAt")
+                            snippet.get("publishedAt", "")
                         ),
                         "duration": duration_to_seconds(
                             item["contentDetails"].get("duration")
@@ -53,7 +53,7 @@ def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
 def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
     """Processes a single video, saves to JSON."""
     video_id = video["video_id"]
-    published_at = video.get("published_at", "")
+    published_at = float(video.get("published_at", 0))
 
     if published_at:
         date_obj = date.fromtimestamp(published_at)
@@ -75,7 +75,8 @@ def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
 
     if raw_transcript_data == video_id:
         return True  # Skip next time
-    elif raw_transcript_data:
+    elif isinstance(raw_transcript_data, list):
+        # assert raw_transcript_data is list[TranscriptSnippet]
         video["transcript_chunks"] = chunk_transcript_with_overlap(
             raw_transcript_data
         )

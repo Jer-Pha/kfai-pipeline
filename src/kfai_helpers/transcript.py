@@ -1,7 +1,21 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from youtube_transcript_api import YouTubeTranscriptApi
+from typing import Iterable
+from youtube_transcript_api import FetchedTranscriptSnippet, YouTubeTranscriptApi  # type: ignore[attr-defined]
 
 from .types import TranscriptChunk, TranscriptSnippet
+
+
+def _normalize_transcript(
+    snippets: Iterable[FetchedTranscriptSnippet],
+) -> list[TranscriptSnippet]:
+    return [
+        {
+            "text": snippet.text,
+            "start": snippet.start,
+            "duration": snippet.duration,
+        }
+        for snippet in snippets
+    ]
 
 
 def get_raw_transcript_data(
@@ -13,32 +27,30 @@ def get_raw_transcript_data(
     and 'duration'.
     """
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(
-            video_id, languages=["en"]
-        )
-        return transcript_list
+        yt_transcript_api = YouTubeTranscriptApi()
+        fetched = yt_transcript_api.fetch(video_id=video_id, languages=["en"])
+        return _normalize_transcript(fetched)
     except Exception as e:
-        e = str(e)
+        error = str(e)
         if (
-            "Subtitles are disabled for this video" in e
-            or "This video is age-restricted" in e
+            "Subtitles are disabled for this video" in error
+            or "This video is age-restricted" in error
         ):
             return video_id
         elif (
             "No transcripts were found for any of the requested language"
             " codes: ['en']"
-        ) in e:
+        ) in error:
             try:
                 print(
                     "  ...Non-English subtitles found, attempting workaround."
                 )
                 # Get the list of all available transcripts
-                transcript_list = YouTubeTranscriptApi.list_transcripts(
-                    video_id
-                )
+                yt_transcript_api = YouTubeTranscriptApi()
+                new_transcript_list = yt_transcript_api.list(video_id)
 
                 # Find a transcript that is translatable to English
-                for transcript in transcript_list:
+                for transcript in new_transcript_list:
                     if transcript.is_translatable:
                         print(
                             "  -> Found a translatable transcript"
@@ -47,20 +59,9 @@ def get_raw_transcript_data(
                         )
 
                         trans_snippets = transcript.translate("en").fetch()
-
-                        # Convert the list of objects to a list of dictionaries
-                        normalized_transcript = []
-                        for snippet in trans_snippets:
-                            normalized_transcript.append(
-                                {
-                                    "text": snippet.text,
-                                    "start": snippet.start,
-                                    "duration": snippet.duration,
-                                }
-                            )
-
+                        response = _normalize_transcript(trans_snippets)
                         print("  -> Translation and normalization successful.")
-                        return normalized_transcript
+                        return response
 
                 # If no translatable transcripts are found after checking
                 print(
@@ -74,7 +75,7 @@ def get_raw_transcript_data(
                     f"  !! An error occurred during translation attempt for {video_id}: {e}"
                 )
         else:
-            print(f"Could not retrieve transcript for {video_id}: {e}")
+            print(f"Could not retrieve transcript for {video_id}")
         return None
 
 
@@ -121,7 +122,7 @@ def chunk_transcript_with_overlap(
     text_chunks = text_splitter.split_text(full_text)
 
     # 3. Re-associate each chunk with its original start time.
-    final_chunks = []
+    final_chunks: list[TranscriptChunk] = []
     current_search_position = 0  # <-- Add this variable
 
     for chunk_text in text_chunks:
