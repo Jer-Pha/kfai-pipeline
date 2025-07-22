@@ -1,6 +1,9 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from typing import Iterable
-from youtube_transcript_api import FetchedTranscriptSnippet, YouTubeTranscriptApi  # type: ignore[attr-defined]
+from youtube_transcript_api import (
+    FetchedTranscriptSnippet,
+    YouTubeTranscriptApi,
+)
 
 from .types import TranscriptChunk, TranscriptSnippet
 
