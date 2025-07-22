@@ -5,9 +5,9 @@ from os import makedirs, path
 from datetime import date
 
 from .config import YOUTUBE_API_KEY
-from .types import CompleteVideoRecord, TranscriptSnippet, VideoMetadata
+from .types import CompleteVideoRecord, VideoMetadata
 from .transcript import chunk_transcript_with_overlap, get_raw_transcript_data
-from .utils import date_to_timestamp, duration_to_seconds
+from .utils import yt_datetime_to_epoch, duration_to_seconds
 
 
 def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
@@ -33,7 +33,7 @@ def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
                         "description": snippet.get(
                             "description", "<NO DESCRIPTION FOUND>"
                         ),
-                        "published_at": date_to_timestamp(
+                        "published_at": yt_datetime_to_epoch(
                             snippet.get("publishedAt", "")
                         ),
                         "duration": duration_to_seconds(
@@ -76,7 +76,6 @@ def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
     if raw_transcript_data == video_id:
         return True  # Skip next time
     elif isinstance(raw_transcript_data, list):
-        # assert raw_transcript_data is list[TranscriptSnippet]
         video["transcript_chunks"] = chunk_transcript_with_overlap(
             raw_transcript_data
         )

@@ -12,16 +12,13 @@ from kfai_helpers.utils import format_duration
 
 # --- Configuration ---
 DB_CONNECTION_STRING = config.POSTGRES_DB_PATH
-# For now, we point to the raw data. Later, you'll change this.
-JSON_SOURCE_DIR = "videos"
-COLLECTION_NAME = "video_transcript_chunks"  # A clear, unique name for your LangChain collection
-BATCH_SIZE = 256  # Number of documents to process and insert at a time
+JSON_SOURCE_DIR = "videos"  # Change to cleaned directory later
+COLLECTION_NAME = "video_transcript_chunks"
+BATCH_SIZE = 256
 
 
 # --- Helper Function ---
-def get_processed_chunk_ids(
-    vectorstore: PGVector,
-) -> set[tuple[str, float]]:
+def get_processed_chunk_ids() -> set[tuple[str, float]]:
     """
     Gets a set of already processed chunk IDs (video_id, start_time)
     by querying the LangChain collection's metadata.
@@ -40,13 +37,12 @@ def get_processed_chunk_ids(
                 )
             """
             )
-            result = connection.execute(
-                stmt, {"collection_name": vectorstore.collection_name}
+            results = connection.execute(
+                stmt, {"collection_name": COLLECTION_NAME}
             )
-            for row in result:
-                metadata = row[
-                    0
-                ]  # The metadata is the first (and only) column
+            for row in results:
+                # The metadata is the first (and only) column
+                metadata = dict(row[0])
                 if (
                     metadata
                     and "video_id" in metadata
@@ -66,7 +62,14 @@ def get_processed_chunk_ids(
 if __name__ == "__main__":
     # 1. Initialize Connections
     print("Initializing database connection and embedding model...")
-    embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(
+        model_name=config.EMBEDDING_MODEL,
+        model_kwargs={"device": "cuda"},
+        encode_kwargs={
+            "normalize_embeddings": True,
+            "batch_size": 128,
+        },
+    )
     vectorstore = PGVector(
         connection=DB_CONNECTION_STRING,
         collection_name=COLLECTION_NAME,
@@ -75,7 +78,7 @@ if __name__ == "__main__":
     print("Initialization successful.")
 
     # 2. Get the set of chunks already in the database for resuming
-    processed_chunks_set = get_processed_chunk_ids(vectorstore)
+    processed_chunks_set = get_processed_chunk_ids()
     print(
         f"Found {len(processed_chunks_set)} chunks already in the LangChain collection."
     )
@@ -94,7 +97,7 @@ if __name__ == "__main__":
 
             filepath = os.path.join(root, filename)
             with open(filepath, "r", encoding="utf-8") as f:
-                video_data = json.load(f)
+                video_data = dict(json.load(f))
 
             video_id = video_data.get("video_id")
             if not video_id:
@@ -103,17 +106,22 @@ if __name__ == "__main__":
             # Prepare the video-level metadata once
             video_metadata = {
                 "video_id": video_id,
-                "title": video_data.get("title"),
-                "show_name": video_data.get("show_name"),
-                "hosts": ",".join(video_data.get("hosts", [])),
-                "published_at": str(
-                    video_data.get("published_at")
-                ),  # Ensure it's a string for JSONB
+                "title": video_data.get("title", "<NO TITLE FOUND>"),
+                "show_name": video_data.get(
+                    "show_name", "<NO SHOW NAME FOUND>"
+                ),
+                "hosts": ",".join(
+                    video_data.get("hosts", [])
+                ),  # String for PGVector `$like` filter
+                "published_at": video_data.get(
+                    "published_at", 1325376000
+                ),  # UNIX epoch, default is 2012-01-01T00:00
             }
 
             # 4. Iterate through chunks and create Document objects for new ones
             for chunk in video_data.get("transcript_chunks", []):
-                chunk_start_time = chunk.get("start")
+                assert type(chunk) is dict
+                chunk_start_time = float(chunk.get("start", 0))
 
                 # Resumability Check
                 if (video_id, chunk_start_time) in processed_chunks_set:
@@ -121,7 +129,7 @@ if __name__ == "__main__":
                     continue
 
                 # This is a new chunk, prepare its full metadata
-                chunk_text = chunk.get("text", "").strip()
+                chunk_text = str(chunk.get("text", "")).strip()
                 chunk_metadata = video_metadata.copy()
                 chunk_metadata["start_time"] = float(chunk_start_time)
                 chunk_metadata["text"] = chunk_text

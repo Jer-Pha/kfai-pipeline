@@ -13,6 +13,7 @@ from .types import (
     PGVectorShowName,
     PGVectorText,
 )
+from .utils import iso_string_to_epoch
 
 # --- CONFIGURATION ---
 POSTGRES_DB_PATH = POSTGRES_DB_PATH
@@ -442,36 +443,38 @@ def _parse_year_range(
 
         parsed_data = dict(json.loads(get_year_response))
 
-        filter_gte: dict[str, str] = {"$gte": ""}
-        filter_lte: dict[str, str] = {"$lte": ""}
+        filter_gte: dict[str, int] = {"$gte": 0}
+        filter_lte: dict[str, int] = {"$lte": 0}
         years: list[str] = []
 
         if parsed_data.get("exact_year", None) != "NOT_FOUND":
             print("exact year found:", parsed_data["exact_year"])
             year = parsed_data["exact_year"]
-            filter_gte["$gte"] = f"{year}-01-01T00:00:00"
-            filter_lte["$lte"] = f"{year}-12-31T23:59:59"
+            filter_gte["$gte"] = iso_string_to_epoch(f"{year}-01-01T00:00:00")
+            filter_lte["$lte"] = iso_string_to_epoch(f"{year}-12-31T23:59:59")
             years.append(year)
         elif parsed_data.get("year_range", None) != "NOT_FOUND":
             print("year range found:", parsed_data["year_range"])
             _range = parsed_data["year_range"].split("-")
             start = _range[0]
             end = _range[1]
-            filter_gte["$gte"] = f"{start}-01-01T00:00:00"
-            filter_lte["$lte"] = f"{end}-12-31T23:59:59"
+            filter_gte["$gte"] = iso_string_to_epoch(f"{start}-01-01T00:00:00")
+            filter_lte["$lte"] = iso_string_to_epoch(f"{end}-12-31T23:59:59")
             years.append(start)
             years.append(end)
         elif parsed_data.get("before_year", None) != "NOT_FOUND":
             print("before year found:", parsed_data["before_year"])
             year = str(int(parsed_data["before_year"]) - 1)
-            filter_gte["$gte"] = "2012-01-01T00:00:00"
-            filter_lte["$lte"] = f"{year}-12-31T23:59:59"
+            filter_gte["$gte"] = 1325376000
+            filter_lte["$lte"] = iso_string_to_epoch(f"{year}-12-31T23:59:59")
             years.append(year)
         elif parsed_data.get("after_year", None) != "NOT_FOUND":
             print("after year found:", parsed_data["after_year"])
             year = str(int(parsed_data["after_year"]) + 1)
-            filter_gte["$gte"] = f"{year}-01-01T00:00:00"
-            filter_lte["$lte"] = f"{current_year}-12-31T23:59:59"
+            filter_gte["$gte"] = iso_string_to_epoch(f"{year}-01-01T00:00:00")
+            filter_lte["$lte"] = iso_string_to_epoch(
+                f"{current_year}-12-31T23:59:59"
+            )
             years.append(year)
         else:
             print("no year found")

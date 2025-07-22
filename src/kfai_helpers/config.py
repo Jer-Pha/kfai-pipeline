@@ -14,8 +14,7 @@ DB_DATABASE = getenv("DB_DATABASE", default="")
 SQLITE_DB_PATH = getenv("SQLITE_DB_PATH", default="")
 POSTGRES_DB_PATH = getenv("POSTGRES_DB_PATH", default="")
 
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-# EMBEDDING_MODEL = "mixedbread-ai/mxbai-embed-large-v1"
+EMBEDDING_MODEL = "mixedbread-ai/mxbai-embed-large-v1"
 CLEANING_MODEL = "llama3.1:8b-instruct-q8_0"
 PARSING_MODEL = "qwen3:14b-q4_K_M"
 QA_MODEL = "qwen3:14b-q4_K_M"

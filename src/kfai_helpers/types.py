@@ -15,7 +15,7 @@ class PGVectorHosts(TypedDict):
 
 
 class PGVectorPublishedAt(TypedDict):
-    published_at: dict[str, str]
+    published_at: dict[str, int]
 
 
 # --- db.py ---
