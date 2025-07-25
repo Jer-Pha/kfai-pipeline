@@ -345,30 +345,38 @@ def get_unique_metadata(engine: Engine) -> tuple[list[str], list[str]]:
     hosts = set()
     with engine.connect() as connection:
         # Get unique show names
-        show_result = connection.execute(
-            text("SELECT DISTINCT show_name FROM videos;")
+        show_query = text(
+            """
+            SELECT DISTINCT (cmetadata ->> 'show_name') AS show_name
+            FROM langchain_pg_embedding
+            WHERE (cmetadata ->> 'show_name') IS NOT NULL;
+        """
         )
+        show_result = connection.execute(show_query)
         for row in show_result:
-            if row.show_name:
-                show_names.add(row.show_name)
+            if row[0]:  # row[0] is the show_name
+                show_names.add(row[0])
 
         # Get unique hosts
-        host_result = connection.execute(
-            text(
-                """
-                SELECT host
-                FROM (
-                    SELECT unnest(hosts) AS host
-                    FROM videos
-                ) AS unnested_hosts
-                GROUP BY host
-                HAVING COUNT(*) >= 5;
-                """
-            )
+        host_query = text(
+            """
+            SELECT host
+            FROM (
+                SELECT
+                    TRIM(regexp_split_to_table(cmetadata ->> 'hosts', ',')) AS host,
+                    (cmetadata ->> 'video_id') AS video_id
+                FROM langchain_pg_embedding
+            ) AS unnested_hosts
+            WHERE host <> ''
+            GROUP BY host
+            HAVING COUNT(DISTINCT video_id) >= 5
+            ORDER BY host;
+        """
         )
+        host_result = connection.execute(host_query)
         for row in host_result:
-            if row.host:
-                hosts.add(row.host)
+            if row[0]:  # row[0] is the host
+                hosts.add(row[0])
 
     print("Host count:", len(hosts))
 
