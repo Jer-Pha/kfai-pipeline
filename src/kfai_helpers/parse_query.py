@@ -67,16 +67,18 @@ GET_SHOWS_PROMPT = """
     INSTRUCTIONS
     - You are a meticulous string analyzer that has been given a USER QUERY (below)
     - Your task is to analyze the provided USER QUERY and look for any show name strings that are reasonably similar, or exact, to those in the SHOW NAMES master list (above), and convert them to the correct name from the master list then return the corrected string(s)
-    - Show names would be reasonably similar for several reasons, including:
+    - Show names would be **reasonably similar** for several reasons, including:
         - Punctuation
         - Spelling
         - Capitalization
         - Missing words (partial name)
         - Obvious initialization
+    - *CRITICAL* do not use single names, such as Colin, Greg, or Blessing, to extrapolte into a show name. **Reasonably similar** requires at least two words from the known shows.
     - Some examples of possible conversions:
         - "ps i love you" converts to "PS I Love You"
         - "KF podcast" converts to "Kinda Funny Podcast"
         - "Gamecast" converts to "Gamescast"
+        - "KFGD" converts to "Kinda Funny Games Daily"
     - Return a JSON object that matches the below formatting
     - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question
     - If no matches are found, return an empty array as the value: []
@@ -95,11 +97,11 @@ GET_SHOWS_PROMPT = """
     }}
 
     EXAMPLE #2 QUERY:
-    I remember them discussing the 2019 World Series, was it on the KF Podcast or game over greggy show?
+    I remember Colin and Nick discussing the 2019 World Series, was it on the KF Podcast or game over greggy show?
 
     EXAMPLE #2 RESPONSE:
     {{
-      "shows": ["Kinda Funny Podcast", "The GameOverGreggy Show"]
+      "shows": ["Kinda Funny Podcast", "The GameOverGreggy Show"] // Colin is a regular host, his name should not immediately add "A Conversation With Colin" into your response
     }}
 
     EXAMPLE #3 QUERY:
@@ -107,7 +109,15 @@ GET_SHOWS_PROMPT = """
 
     EXAMPLE #3 RESPONSE:
     {{
-      "shows": [] // No known shows in query
+      "shows": [] // No known shows in query. Greg is a regular host, his name should not immediately add "The GameOverGreggy Show" into your response
+    }}
+
+    EXAMPLE #3 QUERY:
+    On KFGD, has Blessing ever mentioned Donkey Kong?
+
+    EXAMPLE #3 RESPONSE:
+    {{
+      "shows": ["Kinda Funny Games Daily"] // Blessing is a regular host, his name should not immediately add "The Blessing Show" into your response
     }}
 
     USER QUERY:
@@ -284,7 +294,8 @@ GET_TOPICS_PROMPT = """
         - "PS I love you" might refer to "PS I Love You XOXO"
         - "gameovergreggy show" might refer to "The GameOverGreggy Show"
         - "KF pod cast" might refer to "Kinda Funny Podcast"
-    - Consider any phrases with two or more words that **surrounded by quotes** as a topic
+    - Consider any phrases with two or more words that **surrounded by quotes** as a topic, such as "boom goes the dynamite"
+    - Topics should typically be nouns or proper nouns, not phrases unless the user surrounds it in quotes
     - If the user misspelled a topic, return it with the correct spelling
     - Return a JSON object that matches the below formatting
     - Do **NOT** use markdown formatting. Do **NOT** include explanations. Do **NOT** answer the user question.

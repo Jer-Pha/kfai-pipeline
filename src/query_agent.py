@@ -20,7 +20,7 @@ from kfai_helpers.utils import format_duration
 # --- Configuration ---
 POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
 COLLECTION_TABLE = "video_transcript_chunks"
-CONTEXT_COUNT = 100
+CONTEXT_COUNT = 150
 EMBEDDING_COLUMN = "embedding"
 llm = OllamaLLM(
     model=config.QA_MODEL,
@@ -42,7 +42,8 @@ QA_PROMPT = """
     - You are a factual Q&A assistant for the 'Kinda Funny' YouTube channel archive.
     - The context provided above is relevant snippets of direct transcript from episodes.
     - Your task is to respond to the USER QUERY (below) based **ONLY** on this CONTEXT.
-    - Use the "video_id" metadata as a citation for each sentence.
+    - Use the `video_id` and `start_time` metadata as a citation for each sentence.
+        - Citation example: (kj_sfU8432s, 927.31)
     - Focus your response on the list of TOPICS (above) and the USER QUERY.
     - Do not direct quote the context unless the user asked for a direct quote.
 
@@ -150,7 +151,7 @@ if __name__ == "__main__":
             )
 
         print("Thinking...")
-        result = qa_chain.invoke(
+        response = qa_chain.invoke(
             {
                 "input": query,
                 "topics": topics,
@@ -158,7 +159,7 @@ if __name__ == "__main__":
             }
         )
 
-        result = clean_llm_response(result)
+        result = clean_llm_response(response)
 
         if result:
             print("\nAnswer:")
@@ -168,9 +169,9 @@ if __name__ == "__main__":
             for doc in docs:
                 metadata = doc.metadata
                 video_id = metadata["video_id"]
-                if video_id in result:
+                start_time = metadata["start_time"]
+                if video_id in result and str(start_time) in result:
                     source_found = True
-                    start_time = metadata["start_time"]
                     print(
                         f"  - From video ID {video_id} ("
                         f"at ~{int(start_time // 60)}m"
