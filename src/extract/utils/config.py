@@ -2,6 +2,8 @@ from os import getenv
 
 from dotenv import load_dotenv
 
+from common.config import DATA_DIR
+
 load_dotenv()
 
 # YouTube
@@ -14,4 +16,9 @@ MYSQL_PASSWORD = getenv("MYSQL_PASSWORD", default="")
 MYSQL_DATABASE = getenv("MYSQL_DATABASE", default="")
 
 # Local
-SQLITE_DB_PATH = getenv("SQLITE_DB_PATH", default="")
+SQLITE_DB_NAME = getenv("SQLITE_DB_NAME", default=".sqlite")
+SQLITE_DB_PATH = DATA_DIR / SQLITE_DB_NAME
+
+
+# Other
+VIDEOS_TO_SKIP_FILE = DATA_DIR / "skipped_videos.json"

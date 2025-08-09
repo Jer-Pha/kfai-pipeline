@@ -1,339 +1,75 @@
-import json
-import logging
-import os
-import re
 from traceback import format_exc
 
 from langchain_ollama import OllamaLLM
-from tqdm import tqdm
 
-from common.types import CompleteVideoRecord, TranscriptChunk
+from common.config import CLEANED_JSON_DIR, LOGS_DIR, RAW_JSON_DIR
+from transform.utils.cleaning import clean_transcript
 from transform.utils.config import CLEANING_MODEL
-
-# --- CONFIGURATION ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
-RAW_JSON_DIR = os.path.join(BASE_DIR, "videos")
-CLEANED_DIR_NAME = f"videos_cleaned_local-{CLEANING_MODEL.split(":")[0]}"
-CLEANED_JSON_DIR = os.path.join(BASE_DIR, CLEANED_DIR_NAME)
-os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
-
-# --- LLM SETUP ---
-llm = OllamaLLM(
-    model=CLEANING_MODEL,
-    temperature=0.1,
-    top_p=0.92,
-    top_k=40,
-    keep_alive=60,
-    reasoning=False,
-    verbose=False,
+from transform.utils.helpers import (
+    check_data_integrity,
+    load_raw_data,
+    save_cleaned_data,
 )
+from transform.utils.logger_config import setup_logging
 
-# --- LOGGING SETUP ---
-LOG_LEVEL = logging.WARNING
-log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-log_file = os.path.join(LOGS_DIR, "cleaning_process.log")
-file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
-file_handler.setFormatter(log_formatter)
-file_handler.setLevel(LOG_LEVEL)
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(log_formatter)
-stream_handler.setLevel(LOG_LEVEL)
-logger = logging.getLogger()
-logger.setLevel(LOG_LEVEL)
-if not logger.handlers:
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-
-# -- GLOBAL REGEX COMPILERS ---
-_compile = re.compile
-_sub_profanity = _compile(r"\[\u00a0__\u00a0\]").sub
-_sub_bracket_tags = _compile(r"\[\s*[^]]*?\s*\]").sub
-_sub_whitespace = _compile(r"\s+").sub
-_sub_chunk = _compile(r"</?CHUNK>").sub
-_sub_squotes = _compile(r"[‘’]").sub
-_sub_dquotes = _compile(r"[“”]").sub
-
-# --- PROMPT TEMPLATES ---
-
-# Used across all LLM calls
-SYSTEM_PROMPT = """
-- You are an expert transcription editor for the 'Kinda Funny' and 'Kinda Funny Games' YouTube channels.
-- You have been provided a video's metadata and a chunk of the auto-generated transcript.
-- Your task is to process the chunk per the FULL INSTRUCTIONS and return the processed string.
-- Use the METADATA to bias your corrections.
-- You are expected to confidently fix obvious phonetic or name errors using common knowledge, especially when they relate to context found in the title, description, or host names.
-
-FULL INSTRUCTIONS:
-Use your contextual knowledge of the hosts, show names, common topics (video games, movies, comics, etc.), and the video's metadata to accomplish the following items while cleaning the chunk's text:
-  - Correct phonetic mistakes and spelling errors, especially for names, pop culture references, and brands, even if they’re only approximate matches.
-  - Capitalize proper nouns like names, games, and show titles.
-  - Do **NOT** change the original meaning, slang, or grammar. Do **NOT** remove filler text. Only correct clear errors.
-  - If a word or phrase is ambiguous, leave it as is.
-  - **CRITICAL RULE**: Do NOT discard or omit any text, even if it appears to be an incomplete sentence (fragment). If it is just a fragment, clean it for spelling and return the cleaned fragment. Do not try to make it a full sentence.
-  - The RESPONSE should be the cleaned chunk and nothing else — do **NOT** include thoughts, explanations, or commentary.
-
-EXAMPLES OF POSSIBLE CHANGES (INPUT → CLEANED):
-  - "Tim Geddes" → "Tim Gettys"
-  - "wing grety" → "Wayne Gretzky"
-  - "final fantasy versus 13" → "Final Fantasy Versus XIII"
-  - "game over greggy" → "GameOverGreggy"
-"""
-
-# Used with new data each LLM call
-USER_PROMPT = """
-METADATA CONTEXT:
-{metadata}
-
-RAW CHUNK:
-{chunk}
-
-RESPONSE:
-"""
+logger = setup_logging()
 
 
-# --- HELPER FUNCTIONS ---
-def _get_file_paths(root: str, filename: str) -> tuple[str, str, str]:
-    """Constructs and returns the raw and cleaned file paths."""
-    raw_path = os.path.join(root, filename)
-    relative_path = os.path.relpath(raw_path, RAW_JSON_DIR)
-    cleaned_path = os.path.join(CLEANED_JSON_DIR, relative_path)
-    return raw_path, relative_path, cleaned_path
+def run():
+    llm = OllamaLLM(
+        model=CLEANING_MODEL,
+        temperature=0.1,
+        top_p=0.92,
+        top_k=40,
+        keep_alive=60,
+        reasoning=False,
+        verbose=False,
+    )
 
-
-def _load_raw_data(raw_path: str) -> CompleteVideoRecord | None:
-    """Loads and returns the JSON data from a given file path."""
-    try:
-        with open(raw_path, "r", encoding="utf-8") as f:
-            video_data: CompleteVideoRecord = json.load(f)
-            return video_data
-    except (json.JSONDecodeError, IOError):
-        logger.error(f"Failed to load or parse source file: {raw_path}")
-        logger.error(format_exc())
-        return None
-
-
-def _check_data_integrity(
-    raw_data: CompleteVideoRecord,
-    cleaned_data: CompleteVideoRecord,
-    relative_path: str,
-) -> bool:
-    """Performs data integrity checks and returns True if all pass."""
-    if not cleaned_data or set(cleaned_data.keys()) != set(raw_data.keys()):
-        logger.warning(
-            f"Data integrity check failed for {relative_path}: Key mismatch"
-            " or empty data."
-        )
-        return False
-
-    assert raw_data["transcript_chunks"] is not None
-    raw_transcript_chunks: list[TranscriptChunk] = raw_data[
-        "transcript_chunks"
-    ]
-    raw_chunk_count = len(raw_transcript_chunks)
-    cleaned_chunk_count = len(raw_transcript_chunks)
-
-    if cleaned_chunk_count != raw_chunk_count:
-        error_msg = (
-            f"Data integrity error: {raw_chunk_count} chunks sent,"
-            f" but received {cleaned_chunk_count} back."
-        )
-        logger.error(f"In {relative_path}: {error_msg}")
-        return False
-
-    return True
-
-
-def _save_cleaned_data(
-    cleaned_path: str, cleaned_video_data: CompleteVideoRecord
-) -> bool:
-    """Saves the cleaned data to a JSON file, creating directories if needed."""
-    try:
-        cleaned_dir = os.path.dirname(cleaned_path)
-        os.makedirs(cleaned_dir, exist_ok=True)
-        with open(cleaned_path, "w", encoding="utf-8") as f:
-            json.dump(cleaned_video_data, f, indent=4)
-        print(f"  -> Successfully cleaned and saved to {cleaned_path}")
-        return True
-    except Exception:
-        logger.error(f"Failed to save cleaned file: {cleaned_path}")
-        logger.error(format_exc())
-        return False
-
-
-def _clean_text_chunk(text: str) -> str:
-    # Fix transcript profanity reference
-    text = _sub_profanity("****", text)
-
-    # Remove filler
-    text = text.replace("\u200b", "").replace("\xa0", " ")
-    text = text.replace(">>", "")
-
-    # Regex cleanup
-    text = _sub_bracket_tags("", text)
-    text = _sub_whitespace(" ", text).strip()
-
-    return text
-
-
-def _clean_response(response: str) -> str:
-    """Clean common LLM inconsistencies in the response."""
-    response = response.split("Here is the cleaned chunk:")[-1]
-    response = response.split("Here's the cleaned chunk:")[-1]
-    response = response.split("</think>")[-1]
-    response = _sub_chunk("", response)
-    response = _sub_squotes("'", response)
-    response = _sub_dquotes('"', response)
-    return response
-
-
-# --- CORE FUNCTION ---
-def _clean_transcript(
-    video_data: CompleteVideoRecord, relative_path: str
-) -> CompleteVideoRecord | None:
-    """Cleans a video's transcript with Ollama, one chunk at a time."""
-    try:
-        assert video_data["transcript_chunks"] is not None
-        transcript_chunks: list[TranscriptChunk] = video_data[
-            "transcript_chunks"
-        ]
-        chunk_count = len(transcript_chunks)
-        cleaned_video_data: CompleteVideoRecord = {
-            "id": video_data["id"],
-            "video_id": video_data["video_id"],
-            "show_name": video_data["show_name"],
-            "hosts": video_data["hosts"],
-            "title": video_data["title"],
-            "description": video_data["description"],
-            "published_at": video_data["published_at"],
-            "duration": video_data["duration"],
-            "transcript_chunks": [],
-        }
-        assert cleaned_video_data["transcript_chunks"] is not None
-        metadata = (
-            json.dumps(cleaned_video_data)
-            .replace("{", "{{")
-            .replace("}", "}}")
-        )  # Escape brackets for `user_prompt_template.format(chunk=text)`
-
-        _invoke_llm = llm.invoke
-        _clean = _clean_response
-
-        progress_bar = tqdm(
-            total=chunk_count,
-            unit="chunk",
-        )
-
-        user_prompt_template = USER_PROMPT.format(
-            metadata=metadata, chunk="{chunk}"
-        )
-
-        for chunk in transcript_chunks:
-            text = _clean_text_chunk(chunk["text"])
-            user_prompt = user_prompt_template.format(chunk=text)
-
-            try:
-                response = _invoke_llm(
-                    [
-                        {
-                            "role": "system",
-                            "content": SYSTEM_PROMPT,
-                        },
-                        {"role": "user", "content": user_prompt},
-                    ]
-                )
-
-                response = _clean(response)
-                cleaned_chunk: TranscriptChunk = {
-                    "text": response.strip(),
-                    "start": chunk["start"],
-                }
-                cleaned_video_data["transcript_chunks"].append(cleaned_chunk)
-                progress_bar.update(1)
-            except:
-                logger.error(
-                    f"LLM call failed on chunk in {relative_path} starting "
-                    f"at {chunk['start']}s."
-                )
-                logger.error(format_exc())
-                print(
-                    f"  !! LLM call failed. See {LOGS_DIR} for details."
-                    " Skipping video."
-                )
-                progress_bar.close()
-                return None
-
-        progress_bar.close()
-
-        return cleaned_video_data
-    except:
-        logger.error(
-            "An unexpected error occurred in _clean_transcript"
-            f" for {relative_path}."
-        )
-        logger.error(format_exc())
-        print(
-            f"  !! An unexpected error occurred. See {LOGS_DIR} for"
-            " details. Skipping video."
-        )
-        return None
-
-
-# --- MAIN LOGIC ---
-if __name__ == "__main__":
+    CLEANED_JSON_DIR.mkdir(parents=True, exist_ok=True)
     print(
         f"Starting local cleaning process. Raw source: '{RAW_JSON_DIR}',"
         f" Cleaned destination: '{CLEANED_JSON_DIR}'"
     )
+    _clean_transcript = clean_transcript
 
     try:
-        # 1. Loop through raw video directories
-        for root, _, files in os.walk(RAW_JSON_DIR):
-            # 2. Loop through files in each directory
-            for filename in files:
-                # Ignore non-JSON files
-                if not filename.endswith(".json"):
-                    continue
+        for file_path in RAW_JSON_DIR.rglob("*.json"):
+            relative_path = file_path.relative_to(RAW_JSON_DIR)
+            cleaned_path = CLEANED_JSON_DIR / relative_path
 
-                # 3. Get file paths
-                raw_path, relative_path, cleaned_path = _get_file_paths(
-                    root, filename
-                )
+            # Skip videos that have already been cleaned
+            if cleaned_path.exists():
+                continue
 
-                # Skip videos that have already been cleaned
-                if os.path.exists(cleaned_path):
-                    continue
+            print("\n" + "=" * 50)
+            print(f"--- Processing {relative_path} ---")
 
-                print("\n" + "=" * 50)
-                print(f"--- Processing {relative_path} ---")
+            # Load video metadata and transcripts into dict
+            video_data = load_raw_data(file_path)
 
-                # 4. Load video metadata and transcripts into dict
-                video_data = _load_raw_data(raw_path)
+            # Skip videos that don't have a transcript
+            if not video_data or not video_data.get("transcript_chunks"):
+                logger.warning(f"{file_path} does not have a transcript.")
+                continue
 
-                # Skip videos that don't have a transcript
-                if not video_data or not video_data.get("transcript_chunks"):
-                    logger.warning(f"{raw_path} does not have a transcript.")
-                    continue
+            # Clean the transcript
+            cleaned_video_data = _clean_transcript(
+                video_data, relative_path, llm
+            )
+            assert cleaned_video_data is not None
 
-                # 5. Clean the transcript (CORE FUNCTION)
-                cleaned_video_data = _clean_transcript(
-                    video_data, relative_path
-                )
-                assert cleaned_video_data is not None
+            # Verify integrity of the cleaned data
+            data_is_valid = check_data_integrity(
+                video_data, cleaned_video_data, relative_path
+            )
+            if not data_is_valid:
+                continue
 
-                # 6. Verify integrity of the cleaned data
-                data_is_valid = _check_data_integrity(
-                    video_data, cleaned_video_data, relative_path
-                )
-                if not data_is_valid:
-                    continue
-
-                # 7. Save cleaned data to JSON file
-                _save_cleaned_data(cleaned_path, cleaned_video_data)
+            # Save cleaned data to JSON file
+            save_cleaned_data(cleaned_path, cleaned_video_data)
 
         else:
-            # 8. Finish
             print("\nCleaning process complete.")
 
     except:

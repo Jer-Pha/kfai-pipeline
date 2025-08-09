@@ -1,25 +1,23 @@
 import json
-import os
 from random import uniform
 from time import sleep
 from typing import cast
 
+from common.config import RAW_JSON_DIR
 from common.types import CompleteVideoRecord
-from extract.utils.config import SQLITE_DB_PATH
-from extract.utils.helpers import (
+from extract.utils.config import SQLITE_DB_PATH, VIDEOS_TO_SKIP_FILE
+from extract.utils.helpers.database import (
     create_local_sqlite_db,
     get_video_db_data,
-    get_youtube_data,
-    process_video,
 )
+from extract.utils.helpers.processing import process_video
+from extract.utils.helpers.youtube import get_youtube_data
 
-VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
-videos_ids_to_skip = set()
 
-if __name__ == "__main__":
-    sqlite_db_path = SQLITE_DB_PATH
+def run():
+    videos_ids_to_skip = set()
 
-    if os.path.exists(VIDEOS_TO_SKIP_FILE):
+    if VIDEOS_TO_SKIP_FILE.exists():
         try:
             with open(VIDEOS_TO_SKIP_FILE, "r") as f:
                 video_list = json.load(f)
@@ -41,30 +39,28 @@ if __name__ == "__main__":
         )
 
     # Check prevents re-exporting from MySQL on every run.
-    if not os.path.exists(sqlite_db_path):
-        print(f"Local SQLite database not found at {sqlite_db_path}.")
+    if not SQLITE_DB_PATH.exists():
+        print(f"Local SQLite database not found at {SQLITE_DB_PATH}.")
         print("Creating it now from the MySQL source...")
         create_local_sqlite_db()
         print("Local SQLite database created successfully.")
     else:
-        print(f"Found local SQLite database at {sqlite_db_path}.")
-
-    output_directory = "videos"
-    os.makedirs(output_directory, exist_ok=True)
+        print(f"Found local SQLite database at {SQLITE_DB_PATH}.")
 
     print("Finding new videos to process...")
 
     # Get all video IDs from the source database
-    all_db_videos = get_video_db_data(sqlite_db_path)
+    all_db_videos = get_video_db_data(SQLITE_DB_PATH)
     db_video_ids = {v["video_id"] for v in all_db_videos}
 
     # Scan the output directory to see which videos have been processed
+    output_directory = RAW_JSON_DIR
+    output_directory.mkdir(parents=True, exist_ok=True)
     processed_video_ids = set()
-    for root, _, files in os.walk(output_directory):
-        for file in files:
-            if file.endswith(".json"):
-                video_id = file.split(".json")[0]
-                processed_video_ids.add(video_id)
+
+    for file_path in output_directory.rglob("*.json"):
+        video_id = file_path.stem
+        processed_video_ids.add(video_id)
 
     # Find the difference and convert it to a tuple
     new_video_ids = list(
@@ -78,7 +74,7 @@ if __name__ == "__main__":
 
         # Fetch metadata from the DB for the new videos
         new_video_metadata = get_video_db_data(
-            sqlite_db_path, video_ids=new_video_ids
+            SQLITE_DB_PATH, video_ids=new_video_ids
         )
 
         # Enrich with data from the YouTube API

@@ -3,11 +3,13 @@ from typing import cast
 
 from common.types import CompleteVideoRecord
 from extract.utils.config import SQLITE_DB_PATH
-from extract.utils.helpers import get_video_db_data, get_youtube_data
+from extract.utils.helpers.database import get_video_db_data
+from extract.utils.helpers.youtube import get_youtube_data
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
 
-if __name__ == "__main__":
+
+def run():
     try:
         with open(VIDEOS_TO_SKIP_FILE, "r") as f:
             failed_ids = list(json.load(f))
