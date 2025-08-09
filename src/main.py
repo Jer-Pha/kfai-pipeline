@@ -9,18 +9,25 @@ RESPONSE_MAP = {
     "4": build_vector_store.run,
     "5": interactive_qa.run,
 }
+USER_MENU = """--- Welcome to KFAI ---
 
-if __name__ == "__main__":
-    print(
-        "--- Welcome to KFAI ---\n\n"
-        "What would you like to do?\n"
-        "   1. Load raw data from KFDB\n"
-        "   2. Process failed video IDs\n"
-        "   3. Clean raw transcripts\n"
-        "   4. Update the vector store\n"
-        "   5. Interact with the Query Agent\n\n"
-        "Enter the number of your choice (or 'q' to quit):"
-    )
+What would you like to do?
+{options}
+
+Enter the number of your choice (or 'q' to quit):
+"""
+MENU_OPTIONS = {
+    "1": "Load raw data from KFDB",
+    "2": "Process failed video IDs",
+    "3": "Clean raw transcripts",
+    "4": "Update the vector store",
+    "5": "Interact with the Query Agent",
+}
+
+
+def main():
+    options = "\n".join(f"  {k}. {v}" for k, v in MENU_OPTIONS.items())
+    print(USER_MENU.format(options=options))
 
     while True:
         user_input = input("> ").strip().lower()
@@ -30,6 +37,11 @@ if __name__ == "__main__":
             break
 
         if user_input in RESPONSE_MAP:
+            print(f"[{MENU_OPTIONS[user_input]}] Beginning process...\n\n")
             RESPONSE_MAP[user_input]()
             break
-        print(f"Please enter a valid number from 1 to {len(RESPONSE_MAP)}:")
+        print(f"Please enter a valid number from 1 to {len(MENU_OPTIONS)}:")
+
+
+if __name__ == "__main__":
+    main()
