@@ -1,29 +1,25 @@
 import json
 import time
+
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaLLM
 from langchain_postgres import PGVector
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.prompts import PromptTemplate
+from parse_query import clean_llm_response, get_filter, get_unique_metadata
 from sqlalchemy import create_engine
 
-import kfai_helpers.config as config
-from kfai_helpers.parse_query import (
-    clean_llm_response,
-    get_filter,
-    get_unique_metadata,
-)
-from kfai_helpers.utils import format_duration
-
+from load.utils.config import EMBEDDING_MODEL, POSTGRES_DB_PATH, QA_MODEL
+from load.utils.helpers import format_duration
 
 # --- Configuration ---
-POSTGRES_DB_PATH = config.POSTGRES_DB_PATH
+POSTGRES_DB_PATH = POSTGRES_DB_PATH
 COLLECTION_TABLE = "video_transcript_chunks"
 CONTEXT_COUNT = 150
 EMBEDDING_COLUMN = "embedding"
 llm = OllamaLLM(
-    model=config.QA_MODEL,
+    model=QA_MODEL,
     temperature=0.4,
     top_p=0.95,
     top_k=50,
@@ -64,12 +60,50 @@ QA_PROMPT = """
 """
 
 
+class QueryAgent:
+    def __init__(self):
+        start_time = time.time()
+        print(" -> Initializing QueryAgent...")
+
+        # 1. Initialize embeddings and vector store connection
+        print(
+            " -> Connecting to vector store and initializing embedding model..."
+        )
+        self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+        self.vector_store = PGVector(
+            connection=POSTGRES_DB_PATH,
+            collection_name=COLLECTION_TABLE,
+            embeddings=self.embeddings,
+        )
+
+        # 2. Initialize database connection
+        print(" -> Connecting to database and fetching metadata...")
+        engine = create_engine(POSTGRES_DB_PATH)
+        self.show_names, self.hosts = get_unique_metadata(engine)
+
+        # 4. Build QA Agent
+        qa_prompt = PromptTemplate(
+            template=QA_PROMPT, input_variables=["input", "context"]
+        )
+        qa_chain = create_stuff_documents_chain(
+            llm=llm,
+            prompt=qa_prompt,
+        )
+
+        end_time = time.time()
+        print(
+            "\n--- KFAI Agent is ready."
+            f" Setup took {format_duration(end_time - start_time)}. ---"
+        )
+        print(f"Model: {QA_MODEL}")
+
+
 # --- Main Execution ---
 if __name__ == "__main__":
     # 1. Initialize embeddings and vector store connection
     print(" -> Connecting to vector store and initializing embedding model...")
     start_time = time.time()
-    embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
     vector_store = PGVector(
         connection=POSTGRES_DB_PATH,
         collection_name=COLLECTION_TABLE,
@@ -100,7 +134,7 @@ if __name__ == "__main__":
         "\n--- KFAI Agent is ready."
         f" Setup took {format_duration(end_time - start_time)}. ---"
     )
-    print(f"Model: {config.QA_MODEL}")
+    print(f"Model: {QA_MODEL}")
 
     # 5. Start the Interactive Query Loop
     while True:

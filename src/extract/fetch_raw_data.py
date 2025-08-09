@@ -4,16 +4,20 @@ from random import uniform
 from time import sleep
 from typing import cast
 
-import kfai_helpers.config as config
-from kfai_helpers.db import create_local_sqlite_db, get_video_db_data
-from kfai_helpers.types import CompleteVideoRecord
-from kfai_helpers.video import get_youtube_data, process_video
+from common.types import CompleteVideoRecord
+from extract.utils.config import SQLITE_DB_PATH
+from extract.utils.helpers import (
+    create_local_sqlite_db,
+    get_video_db_data,
+    get_youtube_data,
+    process_video,
+)
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
 videos_ids_to_skip = set()
 
 if __name__ == "__main__":
-    sqlite_db_path = config.SQLITE_DB_PATH
+    sqlite_db_path = SQLITE_DB_PATH
 
     if os.path.exists(VIDEOS_TO_SKIP_FILE):
         try:

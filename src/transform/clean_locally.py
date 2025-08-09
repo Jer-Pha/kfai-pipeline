@@ -1,29 +1,27 @@
-import os
 import json
 import logging
+import os
 import re
-from langchain_ollama import OllamaLLM
-from tqdm import tqdm
 from traceback import format_exc
 
-import kfai_helpers.config as config
-from kfai_helpers.types import CompleteVideoRecord, TranscriptChunk
+from langchain_ollama import OllamaLLM
+from tqdm import tqdm
 
+from common.types import CompleteVideoRecord, TranscriptChunk
+from transform.utils.config import CLEANING_MODEL
 
 # --- CONFIGURATION ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 RAW_JSON_DIR = os.path.join(BASE_DIR, "videos")
-CLEANED_DIR_NAME = (
-    f"videos_cleaned_local-{config.CLEANING_MODEL.split(":")[0]}"
-)
+CLEANED_DIR_NAME = f"videos_cleaned_local-{CLEANING_MODEL.split(":")[0]}"
 CLEANED_JSON_DIR = os.path.join(BASE_DIR, CLEANED_DIR_NAME)
 os.makedirs(CLEANED_JSON_DIR, exist_ok=True)
 
 # --- LLM SETUP ---
 llm = OllamaLLM(
-    model=config.CLEANING_MODEL,
+    model=CLEANING_MODEL,
     temperature=0.1,
     top_p=0.92,
     top_k=40,

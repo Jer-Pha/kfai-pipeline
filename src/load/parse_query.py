@@ -1,19 +1,20 @@
 import json
 import re
 from datetime import datetime
-from langchain_ollama import OllamaLLM
-from sqlalchemy import text, Engine
 from traceback import format_exc
 from typing import Union
 
-from .config import PARSING_MODEL, POSTGRES_DB_PATH
-from .types import (
+from langchain_ollama import OllamaLLM
+from sqlalchemy import Engine, text
+
+from load.utils.config import PARSING_MODEL, POSTGRES_DB_PATH
+from load.utils.helpers import iso_string_to_epoch
+from load.utils.types import (
     PGVectorHosts,
     PGVectorPublishedAt,
     PGVectorShowName,
     PGVectorText,
 )
-from .utils import iso_string_to_epoch
 
 # --- CONFIGURATION ---
 POSTGRES_DB_PATH = POSTGRES_DB_PATH

@@ -1,13 +1,4 @@
 from datetime import datetime, timezone
-from isodate import parse_duration
-from isodate.duration import Duration
-
-
-def yt_datetime_to_epoch(data: str) -> int:
-    """Converts YouTube API ISO datetime to Unix epoch timestamp."""
-    if not data:
-        return 0
-    return int(datetime.fromisoformat(data.replace("Z", "+00:00")).timestamp())
 
 
 def iso_string_to_epoch(date_string: str) -> int:
@@ -25,11 +16,6 @@ def iso_string_to_epoch(date_string: str) -> int:
     )
 
     return int(dt_object.timestamp())
-
-
-def duration_to_seconds(duration: Duration) -> int:
-    """Converts YouTube API ISO duration to total seconds."""
-    return int(parse_duration(duration).total_seconds())
 
 
 def format_duration(seconds: float) -> str:

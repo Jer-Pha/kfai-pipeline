@@ -1,17 +1,16 @@
-import os
 import json
+import os
 import time
-from sqlalchemy import create_engine, text
+
 from langchain.schema.document import Document
-from langchain_postgres import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_postgres import PGVector
+from sqlalchemy import create_engine, text
 
-import kfai_helpers.config as config
-from kfai_helpers.utils import format_duration
-
+from load.utils.config import EMBEDDING_MODEL, POSTGRES_DB_PATH
+from load.utils.helpers import format_duration
 
 # --- Configuration ---
-DB_CONNECTION_STRING = config.POSTGRES_DB_PATH
 JSON_SOURCE_DIR = "videos"  # Change to cleaned directory later
 COLLECTION_NAME = "video_transcript_chunks"
 BATCH_SIZE = 256
@@ -27,7 +26,7 @@ def get_processed_chunk_ids() -> set[tuple[str, float]]:
     # This is a bit of a workaround to access the underlying connection
     # as LangChain's PGVector doesn't have a built-in "list all" method.
     try:
-        with create_engine(DB_CONNECTION_STRING).connect() as connection:
+        with create_engine(POSTGRES_DB_PATH).connect() as connection:
             # Query the cmetadata column of the embedding table for this collection
             stmt = text(
                 f"""
@@ -63,7 +62,7 @@ if __name__ == "__main__":
     # 1. Initialize Connections
     print("Initializing database connection and embedding model...")
     embeddings = HuggingFaceEmbeddings(
-        model_name=config.EMBEDDING_MODEL,
+        model_name=EMBEDDING_MODEL,
         model_kwargs={"device": "cuda"},
         encode_kwargs={
             "normalize_embeddings": True,
@@ -71,7 +70,7 @@ if __name__ == "__main__":
         },
     )
     vectorstore = PGVector(
-        connection=DB_CONNECTION_STRING,
+        connection=POSTGRES_DB_PATH,
         collection_name=COLLECTION_NAME,
         embeddings=embeddings,
     )

@@ -1,10 +1,9 @@
 import json
 from typing import cast
 
-import kfai_helpers.config as config
-from kfai_helpers.db import get_video_db_data
-from kfai_helpers.types import CompleteVideoRecord
-from kfai_helpers.video import get_youtube_data
+from common.types import CompleteVideoRecord
+from extract.utils.config import SQLITE_DB_PATH
+from extract.utils.helpers import get_video_db_data, get_youtube_data
 
 VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
 
@@ -19,9 +18,7 @@ if __name__ == "__main__":
         )
 
     # 1. Get the base metadata from your local database
-    db_metadata = get_video_db_data(
-        config.SQLITE_DB_PATH, video_ids=failed_ids
-    )
+    db_metadata = get_video_db_data(SQLITE_DB_PATH, video_ids=failed_ids)
 
     # 2. Enrich with metadata from the YouTube API
     youtube_api_data = get_youtube_data(failed_ids)
