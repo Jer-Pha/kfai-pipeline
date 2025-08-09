@@ -1,6 +1,6 @@
 import logging
 
-from common.config import LOGS_DIR
+from transform.utils.config import LOG_FILE
 
 LOG_LEVEL = logging.WARNING
 
@@ -9,9 +9,8 @@ def setup_logging():
     log_formatter = logging.Formatter(
         "%(asctime)s - %(levelname)s - %(message)s"
     )
-    log_file = LOGS_DIR / "cleaning_process.log"
 
-    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    file_handler = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
     file_handler.setFormatter(log_formatter)
     file_handler.setLevel(LOG_LEVEL)
 

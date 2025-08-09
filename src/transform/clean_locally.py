@@ -2,7 +2,7 @@ from traceback import format_exc
 
 from langchain_ollama import OllamaLLM
 
-from common.config import CLEANED_JSON_DIR, LOGS_DIR, RAW_JSON_DIR
+from common.paths import CLEANED_JSON_DIR, LOGS_DIR, RAW_JSON_DIR
 from transform.utils.cleaning import clean_transcript
 from transform.utils.config import CLEANING_MODEL
 from transform.utils.helpers import (
@@ -31,7 +31,12 @@ def run():
         f"Starting local cleaning process. Raw source: '{RAW_JSON_DIR}',"
         f" Cleaned destination: '{CLEANED_JSON_DIR}'"
     )
+
+    # Reduce import calls
+    _load_raw_data = load_raw_data
     _clean_transcript = clean_transcript
+    _check_data_integrity = check_data_integrity
+    _save_cleaned_data = save_cleaned_data
 
     try:
         for file_path in RAW_JSON_DIR.rglob("*.json"):
@@ -46,7 +51,7 @@ def run():
             print(f"--- Processing {relative_path} ---")
 
             # Load video metadata and transcripts into dict
-            video_data = load_raw_data(file_path)
+            video_data = _load_raw_data(file_path)
 
             # Skip videos that don't have a transcript
             if not video_data or not video_data.get("transcript_chunks"):
@@ -60,14 +65,14 @@ def run():
             assert cleaned_video_data is not None
 
             # Verify integrity of the cleaned data
-            data_is_valid = check_data_integrity(
+            data_is_valid = _check_data_integrity(
                 video_data, cleaned_video_data, relative_path
             )
             if not data_is_valid:
                 continue
 
             # Save cleaned data to JSON file
-            save_cleaned_data(cleaned_path, cleaned_video_data)
+            _save_cleaned_data(cleaned_path, cleaned_video_data)
 
         else:
             print("\nCleaning process complete.")

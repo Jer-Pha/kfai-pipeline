@@ -1,10 +1,11 @@
 import json
+from pathlib import Path
 from traceback import format_exc
 
 from langchain_ollama import OllamaLLM
 from tqdm import tqdm
 
-from common.config import LOGS_DIR
+from common.paths import LOGS_DIR
 from common.types import CompleteVideoRecord, TranscriptChunk
 from transform.utils.helpers import clean_response, clean_text_chunk
 from transform.utils.logger_config import setup_logging
@@ -14,7 +15,7 @@ logger = setup_logging()
 
 
 def clean_transcript(
-    video_data: CompleteVideoRecord, relative_path: str, llm: OllamaLLM
+    video_data: CompleteVideoRecord, relative_path: Path, llm: OllamaLLM
 ) -> CompleteVideoRecord | None:
     """Cleans a video's transcript with Ollama, one chunk at a time."""
     try:
@@ -93,7 +94,7 @@ def clean_transcript(
         return cleaned_video_data
     except:
         logger.error(
-            "An unexpected error occurred in _clean_transcript"
+            "An unexpected error occurred in clean_transcript()"
             f" for {relative_path}."
         )
         logger.error(format_exc())

@@ -2,7 +2,7 @@ from os import getenv
 
 from dotenv import load_dotenv
 
-from common.config import CLEANED_JSON_DIR, RAW_JSON_DIR
+from common.paths import CLEANED_JSON_DIR, RAW_JSON_DIR
 
 load_dotenv()
 

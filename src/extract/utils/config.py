@@ -2,7 +2,7 @@ from os import getenv
 
 from dotenv import load_dotenv
 
-from common.config import DATA_DIR
+from common.paths import DATA_DIR
 
 load_dotenv()
 
@@ -22,3 +22,4 @@ SQLITE_DB_PATH = DATA_DIR / SQLITE_DB_NAME
 
 # Other
 VIDEOS_TO_SKIP_FILE = DATA_DIR / "skipped_videos.json"
+FAILED_VIDEOS_FILE = DATA_DIR / "failures_to_transcribe.json"

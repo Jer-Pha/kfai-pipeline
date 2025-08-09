@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from traceback import format_exc
 
-from common.config import CLEANED_JSON_DIR, RAW_JSON_DIR
 from common.types import CompleteVideoRecord, TranscriptChunk
 
 logger = logging.getLogger()
@@ -19,21 +18,14 @@ _sub_squotes = _compile(r"[‘’]").sub
 _sub_dquotes = _compile(r"[“”]").sub
 
 
-def get_file_paths(file_path: Path) -> tuple[Path, Path]:
-    """Constructs and returns the raw and cleaned file paths."""
-    relative_path = file_path.relative_to(RAW_JSON_DIR)
-    cleaned_path = CLEANED_JSON_DIR / relative_path
-    return relative_path, cleaned_path
-
-
-def load_raw_data(raw_path: Path) -> CompleteVideoRecord | None:
+def load_raw_data(file_path: Path) -> CompleteVideoRecord | None:
     """Loads and returns the JSON data from a given file path."""
     try:
-        with open(raw_path, "r", encoding="utf-8") as f:
+        with file_path.open("r", encoding="utf-8") as f:
             video_data: CompleteVideoRecord = json.load(f)
             return video_data
     except (json.JSONDecodeError, IOError):
-        logger.error(f"Failed to load or parse source file: {raw_path}")
+        logger.error(f"Failed to load or parse source file: {file_path}")
         logger.error(format_exc())
         return None
 

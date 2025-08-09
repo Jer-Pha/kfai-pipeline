@@ -2,16 +2,14 @@ import json
 from typing import cast
 
 from common.types import CompleteVideoRecord
-from extract.utils.config import SQLITE_DB_PATH
+from extract.utils.config import FAILED_VIDEOS_FILE, VIDEOS_TO_SKIP_FILE
 from extract.utils.helpers.database import get_video_db_data
 from extract.utils.helpers.youtube import get_youtube_data
-
-VIDEOS_TO_SKIP_FILE = "skipped_videos.json"
 
 
 def run():
     try:
-        with open(VIDEOS_TO_SKIP_FILE, "r") as f:
+        with VIDEOS_TO_SKIP_FILE.open("r", encoding="utf-8") as f:
             failed_ids = list(json.load(f))
     except (json.JSONDecodeError, IOError) as e:
         print(
@@ -20,7 +18,7 @@ def run():
         )
 
     # 1. Get the base metadata from your local database
-    db_metadata = get_video_db_data(SQLITE_DB_PATH, video_ids=failed_ids)
+    db_metadata = get_video_db_data(video_ids=failed_ids)
 
     # 2. Enrich with metadata from the YouTube API
     youtube_api_data = get_youtube_data(failed_ids)
@@ -44,10 +42,10 @@ def run():
                 )
 
         # 4. Save the complete, enriched metadata
-        with open("failures_to_transcribe.json", "w") as f:
+        with FAILED_VIDEOS_FILE.open("w", encoding="utf-8") as f:
             json.dump(enriched_metadata, f, indent=4)
 
         print(
-            "Created failures_to_transcribe.json with enriched data for"
+            f"Created {FAILED_VIDEOS_FILE.name} with enriched data for"
             f" {len(enriched_metadata)} videos."
         )

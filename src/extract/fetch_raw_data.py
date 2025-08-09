@@ -3,7 +3,7 @@ from random import uniform
 from time import sleep
 from typing import cast
 
-from common.config import RAW_JSON_DIR
+from common.paths import RAW_JSON_DIR
 from common.types import CompleteVideoRecord
 from extract.utils.config import SQLITE_DB_PATH, VIDEOS_TO_SKIP_FILE
 from extract.utils.helpers.database import (
@@ -19,7 +19,7 @@ def run():
 
     if VIDEOS_TO_SKIP_FILE.exists():
         try:
-            with open(VIDEOS_TO_SKIP_FILE, "r") as f:
+            with VIDEOS_TO_SKIP_FILE.open("r", encoding="utf-8") as f:
                 video_list = json.load(f)
                 videos_ids_to_skip = set(video_list)
             print(
@@ -50,15 +50,14 @@ def run():
     print("Finding new videos to process...")
 
     # Get all video IDs from the source database
-    all_db_videos = get_video_db_data(SQLITE_DB_PATH)
+    all_db_videos = get_video_db_data()
     db_video_ids = {v["video_id"] for v in all_db_videos}
 
     # Scan the output directory to see which videos have been processed
-    output_directory = RAW_JSON_DIR
-    output_directory.mkdir(parents=True, exist_ok=True)
+    RAW_JSON_DIR.mkdir(parents=True, exist_ok=True)
     processed_video_ids = set()
 
-    for file_path in output_directory.rglob("*.json"):
+    for file_path in RAW_JSON_DIR.rglob("*.json"):
         video_id = file_path.stem
         processed_video_ids.add(video_id)
 
@@ -73,9 +72,7 @@ def run():
         print(f"Found {len(new_video_ids)} new videos to process.")
 
         # Fetch metadata from the DB for the new videos
-        new_video_metadata = get_video_db_data(
-            SQLITE_DB_PATH, video_ids=new_video_ids
-        )
+        new_video_metadata = get_video_db_data(video_ids=new_video_ids)
 
         # Enrich with data from the YouTube API
         youtube_api_data = get_youtube_data(new_video_ids)
@@ -105,17 +102,14 @@ def run():
 
                     # Process video
                     print(f"Processing video: {video_id}")
-                    skip_next_run = process_video(
-                        video_record, output_directory
-                    )
+                    skip_next_run = process_video(video_record)
                     if skip_next_run:
                         videos_ids_to_skip.add(video_id)
                         try:
-                            with open(VIDEOS_TO_SKIP_FILE, "w") as f:
-                                # Convert the set to a list to make it JSON-serializable
-                                json.dump(
-                                    list(videos_ids_to_skip), f, indent=4
-                                )
+                            with VIDEOS_TO_SKIP_FILE.open(
+                                "w", encoding="utf-8"
+                            ) as f:
+                                json.dump(list(videos_ids_to_skip), f)
                         except IOError as e:
                             print(
                                 "FATAL: Could not write to log"

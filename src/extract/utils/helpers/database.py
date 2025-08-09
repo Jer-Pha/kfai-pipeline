@@ -13,9 +13,7 @@ from extract.utils.config import (
 from extract.utils.types import MySQLConfig, RawVideoRecord
 
 
-def _export_mysql_to_sqlite(
-    mysql_config: MySQLConfig, sqlite_db_path: str
-) -> None:
+def _export_mysql_to_sqlite(mysql_config: MySQLConfig) -> None:
     """Exports relevant data from a MySQL database to an SQLite database."""
     mysql_conn, sqlite_conn = None, None
     try:
@@ -24,7 +22,7 @@ def _export_mysql_to_sqlite(
         mysql_cursor = mysql_conn.cursor(dictionary=True)
 
         # Connect to SQLite
-        sqlite_conn = sqlite3.connect(sqlite_db_path)
+        sqlite_conn = sqlite3.connect(SQLITE_DB_PATH)
         sqlite_cursor = sqlite_conn.cursor()
 
         # Create tables in SQLite if they don't exist
@@ -122,14 +120,10 @@ def create_local_sqlite_db() -> None:
         "database": MYSQL_DATABASE,
     }
 
-    # SQLite config
-    sqlite_db_path = SQLITE_DB_PATH
-
-    _export_mysql_to_sqlite(mysql_config, sqlite_db_path)
+    _export_mysql_to_sqlite(mysql_config)
 
 
 def get_video_db_data(
-    sqlite_db: str,
     video_ids: Optional[list[str]] = None,
 ) -> list[RawVideoRecord]:
     """
@@ -139,7 +133,7 @@ def get_video_db_data(
     """
 
     # Get database data from local database
-    conn = sqlite3.connect(sqlite_db)
+    conn = sqlite3.connect(SQLITE_DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 

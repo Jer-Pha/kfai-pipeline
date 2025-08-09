@@ -1,14 +1,18 @@
 from datetime import date
 from json import dump
-from os import makedirs, path
 
+from common.paths import RAW_JSON_DIR
 from common.types import CompleteVideoRecord
+from extract.utils.helpers.transcript import (
+    chunk_transcript_with_overlap,
+    get_raw_transcript_data,
+)
 
 
-def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
+def process_video(video_record: CompleteVideoRecord) -> bool:
     """Processes a single video, saves to JSON."""
-    video_id = video["video_id"]
-    published_at = float(video.get("published_at", 0))
+    video_id = video_record["video_id"]
+    published_at = float(video_record.get("published_at", 0))
 
     if published_at:
         date_obj = date.fromtimestamp(published_at)
@@ -18,11 +22,11 @@ def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
         year = "unknown"
         month = "unknown"
 
-    subdir_path = path.join(output_dir, year, month)
-    makedirs(subdir_path, exist_ok=True)
-    output_path = path.join(subdir_path, f"{video_id}.json")
+    subdir_path = RAW_JSON_DIR / year / month
+    subdir_path.mkdir(parents=True, exist_ok=True)
+    output_path = subdir_path / f"{video_id}.json"
 
-    if path.exists(output_path):
+    if output_path.exists():
         return False  # Video already processed
 
     # Fetch the raw transcript data
@@ -31,10 +35,10 @@ def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
     if raw_transcript_data == video_id:
         return True  # Skip next time
     elif isinstance(raw_transcript_data, list):
-        video["transcript_chunks"] = chunk_transcript_with_overlap(
+        video_record["transcript_chunks"] = chunk_transcript_with_overlap(
             raw_transcript_data
         )
-        if not video["transcript_chunks"]:
+        if not video_record["transcript_chunks"]:
             print(
                 f"Warning: Transcript for {video_id} was empty after chunking."
             )
@@ -42,7 +46,7 @@ def process_video(video: CompleteVideoRecord, output_dir: str) -> bool:
     else:
         return False
 
-    with open(output_path, "w", encoding="utf-8") as outfile:
-        dump(video, outfile, indent=4)
+    with output_path.open("w", encoding="utf-8") as f:
+        dump(video_record, f, indent=4)
 
     return False
