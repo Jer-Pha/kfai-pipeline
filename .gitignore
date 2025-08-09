@@ -152,12 +152,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-retrospective.md
-checklist.md
-test_questions.md
-(OLD)*
-faiss_index_raw/index.faiss
-faiss_index_raw/index.pkl
-queries.txt
-/_deprecated_videos_cleaned
-*/_deprecated*/*
+# KFAI
+faiss_index_raw/
+_deprecated_videos_cleaned/
+_deprecated/
+dev/
+data/
