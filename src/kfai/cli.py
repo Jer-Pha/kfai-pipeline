@@ -1,6 +1,6 @@
-from extractors import fetch_raw_data, process_failed_videos
-from loaders import build_vector_store, interactive_qa
-from transformers import clean_locally
+from kfai.extractors import fetch_raw_data, process_failed_videos
+from kfai.loaders import build_vector_store, interactive_qa
+from kfai.transformers import clean_locally
 
 RESPONSE_MAP = {
     "1": fetch_raw_data.run,
