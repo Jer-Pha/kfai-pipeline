@@ -6,6 +6,8 @@ An end-to-end ETL pipeline and RAG system for searching and analyzing Kinda Funn
 
 This project implements a full **ETL (Extract, Transform, Load)** pipeline to build a specialized **Retrieval-Augmented Generation (RAG)** system from the ground up.
 
+A key feature of this system is its unique knowledge base, which is created by combining public data from the YouTube API with a rich, hand-curated set of metadata from the **[Kinda Funny Database (KFDB)](https://www.kfdb.app/) ([source](https://github.com/Jer-Pha/kfdb))**, a companion project that catalogs hosts, shows, and specific topics.
+
 The ETL pipeline is responsible for:
 1.  **Extracting** video metadata from a private database and raw transcript data from the YouTube API.
 2.  **Transforming** the unstructured transcripts into clean, validated, and structured data using Large Language Models for correction and analysis.
