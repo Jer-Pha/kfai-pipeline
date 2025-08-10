@@ -1,5 +1,6 @@
 import json
 import time
+from copy import deepcopy
 
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
@@ -13,6 +14,7 @@ from kfai.loaders.utils.config import (
     COLLECTION_TABLE,
     CONTEXT_COUNT,
     EMBEDDING_MODEL,
+    MULTI_TOPIC_MIN,
     POSTGRES_DB_PATH,
     QA_MODEL,
 )
@@ -117,14 +119,44 @@ class QueryAgent:
     def _retrieve_documents(self, query: str) -> tuple[list[Document], str]:
         """Retrieves relevant docs from the vector store based on the query."""
         topics, filter_dict = get_filter(query, self.show_names, self.hosts)
-        docs = self.vector_store.similarity_search(
-            topics, k=CONTEXT_COUNT, filter=filter_dict
-        )
+
+        topic_filters = []
+        for filter in filter_dict.get("$and", []):
+            if "$or" in filter:
+                topic_filters.extend(filter["$or"])
+
+        docs = []
+        topic_count = len(topic_filters)
+
+        if topic_count < 2:  # One or zero topics
+            context_count = CONTEXT_COUNT
+            docs = self.vector_store.similarity_search(
+                topics, k=context_count, filter=filter_dict
+            )
+        else:  # Get docs for each topic filter
+            # Use `max()`` to ensure there is enough context for each topic
+            context_count = max(CONTEXT_COUNT // topic_count, MULTI_TOPIC_MIN)
+            for topic_filter in topic_filters:
+                temp_filter = deepcopy(filter_dict)
+                for item in temp_filter["$and"]:
+                    if "$or" in item:
+                        temp_filter["$and"].remove(item)
+                        temp_filter["$and"].append(topic_filter)
+                        break
+                docs.extend(
+                    self.vector_store.similarity_search(
+                        topics, k=context_count, filter=temp_filter
+                    )
+                )
+
         doc_count = len(docs)
         if doc_count == 0:
             return [], ""
 
-        print(f"\nRetrieved {doc_count} docs - [upper limit: {CONTEXT_COUNT}]")
+        print(
+            f"\nRetrieved {doc_count} docs - [upper limit:"
+            f" {context_count * topic_count or CONTEXT_COUNT}]"
+        )
         return docs, topics
 
     def _format_documents_for_context(

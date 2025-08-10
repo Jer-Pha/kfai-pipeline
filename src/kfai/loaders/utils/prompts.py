@@ -241,6 +241,11 @@ GET_TOPICS_PROMPT = """
     - **CRITICAL** If a topic has Roman numerals, return topics for both the Roman and standard numbers; for example:
         - "Final Fantasy Versus XIII" as a topic should return both "Final Fantasy Versus XIII" and "Final Fantasy Versus 13"
         - "Rocky IV" as a topic should return both "Rocky IV" and "Rocky 4"
+    - **After you identify the topics, but before you respond, do these steps:**
+        1. Assess each topic and identify any with both a proper noun and common noun, for example: "Phantom Liberty expansion"
+        2. Add the proper noun to your original response list, for example: "Phantom Liberty"
+        3. Ensure both the mixed noun topic(s) and the proper noun topic(s) are in the final response, for example: "Phantom Liberty expansion" and "Phantom Liberty"
+        4. If you are unsure if this step applies to a topic, assume it does not and skip it
 
     RESPONSE FORMAT (JSON):
     {{
