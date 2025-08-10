@@ -2,13 +2,14 @@ import json
 from pathlib import Path
 from traceback import format_exc
 
-from core.paths import LOGS_DIR
-from core.types import CompleteVideoRecord, TranscriptChunk
 from langchain_ollama import OllamaLLM
 from tqdm import tqdm
-from transformers.utils.helpers import clean_response, clean_text_chunk
-from transformers.utils.logger_config import setup_logging
-from transformers.utils.prompts import SYSTEM_PROMPT, USER_PROMPT
+
+from kfai.core.paths import LOGS_DIR
+from kfai.core.types import CompleteVideoRecord, TranscriptChunk
+from kfai.transformers.utils.helpers import clean_response, clean_text_chunk
+from kfai.transformers.utils.logger_config import setup_logging
+from kfai.transformers.utils.prompts import SYSTEM_PROMPT, USER_PROMPT
 
 logger = setup_logging()
 

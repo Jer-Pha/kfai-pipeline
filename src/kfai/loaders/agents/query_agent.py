@@ -7,19 +7,20 @@ from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaLLM
 from langchain_postgres import PGVector
-from loaders.utils.config import (
+from sqlalchemy import create_engine
+
+from kfai.loaders.utils.config import (
     COLLECTION_TABLE,
     CONTEXT_COUNT,
     EMBEDDING_MODEL,
     POSTGRES_DB_PATH,
     QA_MODEL,
 )
-from loaders.utils.filtering import get_filter
-from loaders.utils.helpers.database import get_unique_metadata
-from loaders.utils.helpers.datetime import format_duration
-from loaders.utils.helpers.llm import clean_llm_response
-from loaders.utils.prompts import QA_PROMPT
-from sqlalchemy import create_engine
+from kfai.loaders.utils.filtering import get_filter
+from kfai.loaders.utils.helpers.database import get_unique_metadata
+from kfai.loaders.utils.helpers.datetime import format_duration
+from kfai.loaders.utils.helpers.llm import clean_llm_response
+from kfai.loaders.utils.prompts import QA_PROMPT
 
 
 class QueryAgent:

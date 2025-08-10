@@ -1,11 +1,12 @@
 from datetime import datetime
 
 import googleapiclient.discovery as ytapi
-from extractors.utils.config import YOUTUBE_API_KEY
-from extractors.utils.types import VideoMetadata
 from googleapiclient.errors import HttpError
 from isodate import parse_duration
 from isodate.duration import Duration
+
+from kfai.extractors.utils.config import YOUTUBE_API_KEY
+from kfai.extractors.utils.types import VideoMetadata
 
 
 def yt_datetime_to_epoch(data: str) -> int:

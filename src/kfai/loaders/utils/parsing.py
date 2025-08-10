@@ -3,16 +3,17 @@ from datetime import datetime
 from traceback import format_exc
 
 from langchain_ollama import OllamaLLM
-from loaders.utils.constants import PRIMARY_HOST_MAP
-from loaders.utils.helpers.datetime import iso_string_to_epoch
-from loaders.utils.helpers.llm import clean_llm_response
-from loaders.utils.prompts import (
+
+from kfai.loaders.utils.constants import PRIMARY_HOST_MAP
+from kfai.loaders.utils.helpers.datetime import iso_string_to_epoch
+from kfai.loaders.utils.helpers.llm import clean_llm_response
+from kfai.loaders.utils.prompts import (
     GET_HOSTS_PROMPT,
     GET_SHOWS_PROMPT,
     GET_TOPICS_PROMPT,
     GET_YEARS_PROMPT,
 )
-from loaders.utils.types import PGVectorPublishedAt
+from kfai.loaders.utils.types import PGVectorPublishedAt
 
 PRIMARY_HOSTS = ", ".join(
     [f"'{k}' likely refers to '{v}'" for k, v in PRIMARY_HOST_MAP.items()]

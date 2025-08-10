@@ -1,6 +1,7 @@
 from langchain_ollama import OllamaLLM
-from loaders.agents.query_agent import QueryAgent
-from loaders.utils.config import QA_MODEL
+
+from kfai.loaders.agents.query_agent import QueryAgent
+from kfai.loaders.utils.config import QA_MODEL
 
 
 def run() -> None:

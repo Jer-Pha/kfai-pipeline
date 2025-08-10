@@ -1,7 +1,7 @@
 import logging
 from logging import Logger
 
-from transformers.utils.config import LOG_FILE
+from kfai.transformers.utils.config import LOG_FILE
 
 LOG_LEVEL = logging.WARNING
 

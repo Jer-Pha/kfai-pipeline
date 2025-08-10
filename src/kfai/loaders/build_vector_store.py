@@ -4,15 +4,16 @@ import time
 from langchain.schema.document import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_postgres import PGVector
-from loaders.utils.config import (
+
+from kfai.loaders.utils.config import (
     BATCH_SIZE,
     COLLECTION_NAME,
     EMBEDDING_MODEL,
     JSON_SOURCE_DIR,
     POSTGRES_DB_PATH,
 )
-from loaders.utils.helpers.database import get_processed_chunk_ids
-from loaders.utils.helpers.datetime import format_duration
+from kfai.loaders.utils.helpers.database import get_processed_chunk_ids
+from kfai.loaders.utils.helpers.datetime import format_duration
 
 
 def run() -> None:

@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from traceback import format_exc
 
-from core.types import CompleteVideoRecord, TranscriptChunk
+from kfai.core.types import CompleteVideoRecord, TranscriptChunk
 
 logger = logging.getLogger()
 

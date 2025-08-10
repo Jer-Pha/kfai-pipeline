@@ -1,12 +1,13 @@
 from typing import Iterable
 
-from core.types import TranscriptChunk
-from extractors.utils.types import TranscriptSnippet
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from youtube_transcript_api import (
     FetchedTranscriptSnippet,
     YouTubeTranscriptApi,
 )
+
+from kfai.core.types import TranscriptChunk
+from kfai.extractors.utils.types import TranscriptSnippet
 
 
 def _normalize_transcript(

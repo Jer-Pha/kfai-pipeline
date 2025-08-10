@@ -1,9 +1,9 @@
 from datetime import date
 from json import dump
 
-from core.paths import RAW_JSON_DIR
-from core.types import CompleteVideoRecord
-from extractors.utils.helpers.transcript import (
+from kfai.core.paths import RAW_JSON_DIR
+from kfai.core.types import CompleteVideoRecord
+from kfai.extractors.utils.helpers.transcript import (
     chunk_transcript_with_overlap,
     get_raw_transcript_data,
 )

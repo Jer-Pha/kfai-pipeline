@@ -1,7 +1,8 @@
 from os import getenv
 
-from core.paths import DATA_DIR
 from dotenv import load_dotenv
+
+from kfai.core.paths import DATA_DIR
 
 load_dotenv()
 

@@ -1,6 +1,6 @@
 from typing import Optional, TypedDict
 
-from extractors.utils.types import RawVideoRecord, VideoMetadata
+from kfai.extractors.utils.types import RawVideoRecord, VideoMetadata
 
 
 class TranscriptChunk(TypedDict):

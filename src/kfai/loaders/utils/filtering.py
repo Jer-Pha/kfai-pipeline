@@ -2,14 +2,15 @@ import re
 from typing import Union
 
 from langchain_ollama import OllamaLLM
-from loaders.utils.config import PARSING_MODEL
-from loaders.utils.parsing import (
+
+from kfai.loaders.utils.config import PARSING_MODEL
+from kfai.loaders.utils.parsing import (
     parse_hosts,
     parse_shows,
     parse_topics,
     parse_year_range,
 )
-from loaders.utils.types import (
+from kfai.loaders.utils.types import (
     PGVectorHosts,
     PGVectorPublishedAt,
     PGVectorShowName,

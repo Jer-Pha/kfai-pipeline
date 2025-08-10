@@ -1,5 +1,6 @@
-from loaders.utils.config import COLLECTION_NAME, POSTGRES_DB_PATH
 from sqlalchemy import Engine, create_engine, text
+
+from kfai.loaders.utils.config import COLLECTION_NAME, POSTGRES_DB_PATH
 
 
 def get_processed_chunk_ids() -> set[tuple[str, float]]:

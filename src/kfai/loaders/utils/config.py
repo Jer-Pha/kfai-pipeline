@@ -1,7 +1,8 @@
 from os import getenv
 
-from core.paths import CLEANED_JSON_DIR, RAW_JSON_DIR
 from dotenv import load_dotenv
+
+from kfai.core.paths import CLEANED_JSON_DIR, RAW_JSON_DIR
 
 load_dotenv()
 

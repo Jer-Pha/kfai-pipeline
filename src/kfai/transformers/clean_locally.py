@@ -1,15 +1,16 @@
 from traceback import format_exc
 
-from core.paths import CLEANED_JSON_DIR, LOGS_DIR, RAW_JSON_DIR
 from langchain_ollama import OllamaLLM
-from transformers.utils.cleaning import clean_transcript
-from transformers.utils.config import CLEANING_MODEL
-from transformers.utils.helpers import (
+
+from kfai.core.paths import CLEANED_JSON_DIR, LOGS_DIR, RAW_JSON_DIR
+from kfai.transformers.utils.cleaning import clean_transcript
+from kfai.transformers.utils.config import CLEANING_MODEL
+from kfai.transformers.utils.helpers import (
     check_data_integrity,
     load_raw_data,
     save_cleaned_data,
 )
-from transformers.utils.logger_config import setup_logging
+from kfai.transformers.utils.logger_config import setup_logging
 
 logger = setup_logging()
 

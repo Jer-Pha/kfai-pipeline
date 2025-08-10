@@ -1,10 +1,13 @@
 import json
 from typing import cast
 
-from core.types import CompleteVideoRecord
-from extractors.utils.config import FAILED_VIDEOS_FILE, VIDEOS_TO_SKIP_FILE
-from extractors.utils.helpers.database import get_video_db_data
-from extractors.utils.helpers.youtube import get_youtube_data
+from kfai.core.types import CompleteVideoRecord
+from kfai.extractors.utils.config import (
+    FAILED_VIDEOS_FILE,
+    VIDEOS_TO_SKIP_FILE,
+)
+from kfai.extractors.utils.helpers.database import get_video_db_data
+from kfai.extractors.utils.helpers.youtube import get_youtube_data
 
 
 def run() -> None:

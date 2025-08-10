@@ -2,14 +2,15 @@ import sqlite3
 from typing import Optional
 
 import mysql.connector
-from extractors.utils.config import (
+
+from kfai.extractors.utils.config import (
     MYSQL_DATABASE,
     MYSQL_HOST,
     MYSQL_PASSWORD,
     MYSQL_USER,
     SQLITE_DB_PATH,
 )
-from extractors.utils.types import MySQLConfig, RawVideoRecord
+from kfai.extractors.utils.types import MySQLConfig, RawVideoRecord
 
 
 def _export_mysql_to_sqlite(mysql_config: MySQLConfig) -> None:

@@ -3,15 +3,15 @@ from random import uniform
 from time import sleep
 from typing import cast
 
-from core.paths import RAW_JSON_DIR
-from core.types import CompleteVideoRecord
-from extractors.utils.config import SQLITE_DB_PATH, VIDEOS_TO_SKIP_FILE
-from extractors.utils.helpers.database import (
+from kfai.core.paths import RAW_JSON_DIR
+from kfai.core.types import CompleteVideoRecord
+from kfai.extractors.utils.config import SQLITE_DB_PATH, VIDEOS_TO_SKIP_FILE
+from kfai.extractors.utils.helpers.database import (
     create_local_sqlite_db,
     get_video_db_data,
 )
-from extractors.utils.helpers.processing import process_video
-from extractors.utils.helpers.youtube import get_youtube_data
+from kfai.extractors.utils.helpers.processing import process_video
+from kfai.extractors.utils.helpers.youtube import get_youtube_data
 
 
 def run() -> None:
