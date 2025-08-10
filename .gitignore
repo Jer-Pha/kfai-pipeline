@@ -159,3 +159,4 @@ _deprecated/
 dev/
 data/
 logs/
+coverage_html/
