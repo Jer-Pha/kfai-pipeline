@@ -9,34 +9,28 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
-# Now we can import from kfai
-from kfai.core.paths import (
-    CLEANED_JSON_DIR,
-    DATA_DIR,
-    LOGS_DIR,
-    PROJECT_ROOT,
-    RAW_JSON_DIR,
-    VIDEO_DATA_DIR,
-)
+from kfai.core.paths import PROJECT_ROOT
+from kfai.core.types import CompleteVideoRecord, TranscriptChunk
 
 
 @pytest.fixture
-def sample_raw_data():
-    return {
-        "id": 1,
-        "video_id": "test123",
-        "title": "Test Video",
-        "show_name": "Kinda Funny Games Daily",
-        "hosts": ["Greg Miller", "Tim Gettys"],
-        "published_at": 1640995200,
-        "transcript_chunks": [
-            {
-                "text": "hey what's up everybody this is greg miller",
-                "start": 0.0,
-                "duration": 2.5,
-            }
+def sample_raw_data() -> CompleteVideoRecord:
+    return CompleteVideoRecord(
+        id=1,  # Integer ID
+        video_id="test123",  # String video ID
+        title="Test Video",
+        show_name="Kinda Funny Games Daily",
+        hosts=["Greg Miller", "Tim Gettys"],
+        published_at=1640995200,
+        duration=120,
+        description="Test video description",
+        transcript_chunks=[
+            TranscriptChunk(
+                text="hey what's up everybody this is greg miller",
+                start=0.0,
+            ),
         ],
-    }
+    )
 
 
 @pytest.fixture
