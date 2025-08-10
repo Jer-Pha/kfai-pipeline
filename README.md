@@ -1,4 +1,4 @@
-# KF-AI
+# KFAI
 
 An end-to-end ETL pipeline and RAG system for searching and analyzing Kinda Funny video content.
 
@@ -13,6 +13,27 @@ The ETL pipeline is responsible for:
 
 This curated database serves as the knowledge base for the RAG system, which provides an accurate and context-aware question-answering experience. When a user asks a question, the system retrieves relevant transcript chunks and uses them to augment the context provided to a local LLM, which then generates a detailed, source-cited answer.
 
+## RAG in Action: An Example Query
+
+The core of this project is its ability to answer complex, comparative questions by synthesizing information from across the entire Kinda Funny video library. Here is a real, unedited response from the query agent.
+
+> **Question:**
+> How did the crew's opinion of Cyberpunk 2077 change from its problematic launch to the release of the Phantom Liberty expansion?
+
+> **Answer:**
+> The crew's opinion of *Cyberpunk 2077* evolved significantly from its problematic launch to the release of the *Phantom Liberty* expansion, as reflected in multiple discussions across the *Kinda Funny* archives. Initially, the game faced widespread criticism for technical issues, bugs, and unmet expectations, which likely shaped a negative perception among developers and players alike. However, the *Phantom Liberty* expansion marked a turning point, with the crew acknowledging its role in "overhauling the way *Cyberpunk 2077* is played." This expansion was praised for building on the game's foundation, addressing prior flaws, and delivering a "really good story" within the universe. The development team's efforts were highlighted, with *Phantom Liberty* being the largest project at CD Projekt Red at the time, involving 300 people during its pre-release phase. Critics and developers alike noted that the expansion helped "get *Cyberpunk* back on track," improving both sales and critical reception. Additionally, the expansion introduced new content such as a flying car, a revamped skill tree, and a new weapon, which were seen as significant enhancements. These changes, combined with the team's shift in focus from *Phantom Liberty* to the next *The Witcher* game (*Polaris*), signaled a renewed commitment to refining the *Cyberpunk* experience. Overall, the *Phantom Liberty* expansion appears to have mitigated the initial backlash, fostering a more positive outlook on the game's potential and the studio's ability to adapt.
+
+> **Sources:**
+> *   **Video:** Official Summer Game Fest 2023 Predictions and Bets - Kinda Funny Gamescast
+>     *   **Timestamp:** `~34m 13s`
+>     *   **Link:** `https://www.youtube.com/watch?v=azbLcWwEC0Q&t=2053s`
+> *   **Video:** Discussing Starfield Reviews - Kinda Funny Games Daily 08.31.23
+>     *   **Timestamp:** `~55m 22s`
+>     *   **Link:** `https://www.youtube.com/watch?v=maY2AobNHXo&t=3322s`
+> *   **Video:** Cyberpunk 2077 Live-Action Project Announced - Kinda Funny Games Daily 10.05.23
+>     *   **Timestamp:** `~20m 17s`
+>     *   **Link:** `https://www.youtube.com/watch?v=WIejox_Iivc&t=1217s`
+
 ## Features
 
 -   **End-to-End ETL Pipeline:** Manages the entire data lifecycle from raw, disparate sources to a clean, queryable vector database.
@@ -20,6 +41,7 @@ This curated database serves as the knowledge base for the RAG system, which pro
 -   **LLM-Powered Data Cleaning:** Utilizes local LLMs within the transformation step to intelligently clean and validate unstructured text data.
 -   **Source-Cited Answers:** The query agent identifies and presents the specific video and timestamp from which information was drawn.
 -   **Professional Tooling:** Built with a focus on code quality, including 100% strict-mode type checking with Mypy and a comprehensive test suite using Pytest.
+
 ## Technology Stack
 
 This project leverages a modern stack of open-source tools to build a robust ETL and AI querying pipeline. The key components are organized by their function within the application.
