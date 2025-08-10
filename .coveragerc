@@ -1,0 +1,18 @@
+[run]
+source = src/kfai
+omit =
+    tests/*
+    */__init__.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__.:
+    pass
+    raise NotImplementedError
+    raise ImportError
+
+[html]
+directory = coverage_html
+title = KF-AI Coverage Report
