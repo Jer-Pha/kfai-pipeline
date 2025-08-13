@@ -14,7 +14,8 @@ USER_MENU = """--- Welcome to KFAI ---
 What would you like to do?
 {options}
 
-Enter the number of your choice (or 'q' to quit):
+Enter the number of your choice (or 'q' to quit).
+If you want to chain multiple functions, use '>' (e.g. "1>2>3").
 """
 MENU_OPTIONS = {
     "1": "Load raw data from KFDB",
@@ -27,7 +28,7 @@ MENU_OPTIONS = {
 
 def main() -> None:
     options = "\n".join(f"  {k}. {v}" for k, v in MENU_OPTIONS.items())
-    print(USER_MENU.format(options=options))
+    print(USER_MENU.format(options=options), end="")
 
     while True:
         user_input = input("> ").strip().lower()
@@ -37,10 +38,25 @@ def main() -> None:
             break
 
         if user_input in RESPONSE_MAP:
-            print(f"[{MENU_OPTIONS[user_input]}] Beginning process...\n\n")
+            print(f"[{MENU_OPTIONS[user_input]}] Beginning process...\n")
             RESPONSE_MAP[user_input]()
             break
-        print(f"Please enter a valid number from 1 to {len(MENU_OPTIONS)}:")
+        else:
+            commands_to_run = [cmd.strip() for cmd in user_input.split(">")]
+            if all(cmd in RESPONSE_MAP for cmd in commands_to_run):
+                print("Beginning chained process:")
+                print(
+                    "\n".join(
+                        f"  {MENU_OPTIONS[cmd]}" for cmd in commands_to_run
+                    )
+                )
+                for cmd in commands_to_run:
+                    print(f"\n[{MENU_OPTIONS[cmd]}] Beginning process...\n")
+                    RESPONSE_MAP[cmd]()
+                break
+        print(
+            f'Please enter a valid number from 1 to {len(MENU_OPTIONS)} or command chain (e.g. "1>2>3"):'
+        )
 
 
 if __name__ == "__main__":
