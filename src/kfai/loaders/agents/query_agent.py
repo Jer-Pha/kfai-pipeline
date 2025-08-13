@@ -1,6 +1,7 @@
 import json
 import time
 from copy import deepcopy
+from typing import Iterable, cast
 
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
@@ -14,7 +15,6 @@ from kfai.loaders.utils.config import (
     COLLECTION_TABLE,
     CONTEXT_COUNT,
     EMBEDDING_MODEL,
-    MULTI_TOPIC_MIN,
     POSTGRES_DB_PATH,
     QA_MODEL,
 )
@@ -23,6 +23,13 @@ from kfai.loaders.utils.helpers.database import get_unique_metadata
 from kfai.loaders.utils.helpers.datetime import format_duration
 from kfai.loaders.utils.helpers.llm import clean_llm_response
 from kfai.loaders.utils.prompts import QA_PROMPT
+from kfai.loaders.utils.types import (
+    EmbeddingCMetadata,
+    GroupedSourceData,
+    PGVectorText,
+    TimestampReference,
+    VideoDataSource,
+)
 
 
 class QueryAgent:
@@ -87,75 +94,199 @@ class QueryAgent:
         )
         print(f"Model: {QA_MODEL}")
 
-    def _print_sources(self, result: str, docs: list[Document]) -> None:
+    def _get_structured_sources(
+        self, result: str, docs: list[Document]
+    ) -> list[VideoDataSource]:
         """
-        Prints the sources for the given result from the list of documents.
+        Gathers, groups, and sorts cited sources into a structured list of
+        dictionaries suitable for a front-end to render.
         """
-        print("\nSources:")
-        source_found = False
+
+        # Step 1: Gather and group all cited sources by video_id
+        grouped_sources: dict[str, GroupedSourceData] = {}
+
         for doc in docs:
-            metadata = doc.metadata
-            video_id = metadata.get("video_id")
-            start_time = metadata.get("start_time")
+            metadata: EmbeddingCMetadata = cast(
+                EmbeddingCMetadata, doc.metadata
+            )
+            video_id = metadata["video_id"]
+            start_time = metadata["start_time"]
+
             if (
                 video_id
-                and start_time
+                and start_time is not None
                 and video_id in result
-                and str(start_time) in result
+                and str(int(start_time)) in result
             ):
-                source_found = True
-                print(
-                    f"  - From video ID {video_id} ("
-                    f"at ~{int(start_time // 60)}m"
-                    f" {int(start_time % 60)}s)"
+                if "timestamps" not in grouped_sources[video_id]:
+                    grouped_sources[video_id]["timestamps"] = set()
+                grouped_sources[video_id]["timestamps"].add(int(start_time))
+                if "metadata" not in grouped_sources[video_id]:
+                    grouped_sources[video_id]["metadata"] = metadata
+                    # Remove chunk-specific text for video-wide metadata
+                    grouped_sources[video_id]["metadata"]["text"] = ""
+
+        if not grouped_sources:
+            return []
+
+        # Step 2: Convert the dictionary into a list and sort by release date
+        sorted_videos: list[GroupedSourceData] = sorted(
+            grouped_sources.values(),
+            key=lambda video: video["metadata"]["published_at"],
+        )
+
+        # Step 3: Build the structured, sorted data
+        source_list: list[VideoDataSource] = []
+        for video_info in sorted_videos:
+            metadata = video_info["metadata"]
+            video_id = metadata["video_id"]
+
+            sorted_timestamps = sorted(list(video_info["timestamps"]))
+            timestamps: list[TimestampReference] = []
+
+            for total_seconds in sorted_timestamps:
+                minutes, seconds = divmod(total_seconds, 60)
+                hours, minutes = divmod(minutes, 60)
+
+                if hours > 0:
+                    formatted_time = f"{hours}:{minutes:02d}:{seconds:02d}"
+                else:
+                    formatted_time = f"{minutes}:{seconds:02d}"
+
+                timestamps.append(
+                    {
+                        "timestamp_sec": total_seconds,
+                        "formatted_time": formatted_time,
+                        "timestamp_href": (
+                            "https://www.youtube.com/"
+                            f"watch?v={video_id}&t={total_seconds}s"
+                        ),
+                    }
                 )
-                print(
-                    f"    Link: https://www.youtube.com/watch?v"
-                    f"={video_id}&t={int(start_time)}s"
-                )
-        if not source_found:
+
+            video_data: VideoDataSource = {
+                "title": metadata["title"],
+                "show_name": metadata["show_name"],
+                "video_href": f"https://www.youtube.com/watch?v={video_id}",
+                "thumbnail_src": (
+                    f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+                ),
+                "references": timestamps,
+            }
+            source_list.append(video_data)
+
+        return source_list
+
+    def _print_sources(self, result: str, docs: list[Document]) -> None:
+        """Prints the sources for the given result using a structured format."""
+        print("\nSources:")
+        structured_sources = self._get_structured_sources(result, docs)
+
+        if not structured_sources:
             print("  - No direct sources cited in the response.")
+            return
+
+        for video_data in structured_sources:
+            print("\n" + "=" * 50)
+            print(f"  Video: {video_data['title']}")
+            print(f"  Show:  {video_data['show_name']}")
+            print(f"  Link:  {video_data['video_href']}")
+            print(f"  Image: {video_data['thumbnail_src']}")
+            print(
+                f"  Referenced at:",
+                ", ".join(
+                    ref["formatted_time"] for ref in video_data["references"]
+                ),
+            )
+        else:
+            print("\n" + "=" * 50, end="\n\n")
+
+    def _sort_documents(self, docs: list[Document]) -> list[Document]:
+        """Sorts documents by their metadata's publish date and start time."""
+        return sorted(
+            docs,
+            key=lambda doc: (
+                cast(EmbeddingCMetadata, doc.metadata)["published_at"],
+                cast(EmbeddingCMetadata, doc.metadata)["video_id"],
+                cast(EmbeddingCMetadata, doc.metadata)["start_time"],
+            ),
+        )
 
     def _retrieve_documents(self, query: str) -> tuple[list[Document], str]:
         """Retrieves relevant docs from the vector store based on the query."""
         topics, filter_dict = get_filter(query, self.show_names, self.hosts)
 
-        topic_filters = []
-        for filter in filter_dict.get("$and", []):
-            if "$or" in filter:
-                topic_filters.extend(filter["$or"])
+        topic_filters: list[dict[str, str]] = []
+
+        if filter_dict:
+            for filter in filter_dict.get("$and", []):
+                or_clause = filter.get("$or", dict())
+                if or_clause:
+                    topic_filters.extend(
+                        cast(Iterable[dict[str, str]], or_clause)
+                    )
+        else:
+            return [], ""
+
+        assert filter_dict is not None  # For mypy
 
         docs = []
         topic_count = len(topic_filters)
 
         if topic_count < 2:  # One or zero topics
-            context_count = CONTEXT_COUNT
             docs = self.vector_store.similarity_search(
-                topics, k=context_count, filter=filter_dict
+                topics, k=CONTEXT_COUNT, filter=filter_dict
             )
-        else:  # Get docs for each topic filter
-            # Use `max()`` to ensure there is enough context for each topic
-            context_count = max(CONTEXT_COUNT // topic_count, MULTI_TOPIC_MIN)
+        else:
+            # Get docs for each topic filter
+            unfiltered_docs: list[tuple[Document, float]] = []
             for topic_filter in topic_filters:
-                temp_filter = deepcopy(filter_dict)
-                for item in temp_filter["$and"]:
-                    if "$or" in item:
-                        temp_filter["$and"].remove(item)
-                        temp_filter["$and"].append(topic_filter)
-                        break
-                docs.extend(
-                    self.vector_store.similarity_search(
-                        topics, k=context_count, filter=temp_filter
+                temp_filter = dict(deepcopy(filter_dict))
+                if "$and" in temp_filter:
+                    assert isinstance(temp_filter["$and"], list)
+                    for item in temp_filter["$and"]:
+                        if "$or" in item:
+                            temp_filter["$and"].remove(item)
+                            temp_filter["$and"].append(
+                                cast(
+                                    dict[str, list[PGVectorText]], topic_filter
+                                )
+                            )
+                            break
+                    unfiltered_docs.extend(
+                        self.vector_store.similarity_search_with_relevance_scores(
+                            topics, k=CONTEXT_COUNT, filter=temp_filter
+                        )
                     )
-                )
 
+            # Sort docs by relevance score
+            unfiltered_docs.sort(key=lambda x: x[1], reverse=True)
+
+            # Deduplicate the results, limiting to CONTEXT_COUNT
+            seen_docs = set()
+            for doc, _ in unfiltered_docs:
+                doc_metadata: EmbeddingCMetadata = cast(
+                    EmbeddingCMetadata, doc.metadata
+                )
+                doc_id = (
+                    f"{doc_metadata['video_id']}"
+                    f"-{doc_metadata['start_time']}"
+                )
+                if doc_id not in seen_docs:
+                    docs.append(doc)
+                    seen_docs.add(doc_id)
+
+                if len(seen_docs) >= CONTEXT_COUNT:
+                    break
+
+        docs = self._sort_documents(docs)
         doc_count = len(docs)
         if doc_count == 0:
             return [], ""
 
         print(
             f"\nRetrieved {doc_count} docs - [upper limit:"
-            f" {context_count * topic_count or CONTEXT_COUNT}]"
+            f" {CONTEXT_COUNT}]"
         )
         return docs, topics
 
@@ -165,7 +296,9 @@ class QueryAgent:
         """Formats retrieved documents into a string for the LLM context."""
         docs_with_metadata = []
         for idx, doc in enumerate(docs, 1):
-            metadata = doc.metadata
+            metadata: EmbeddingCMetadata = cast(
+                EmbeddingCMetadata, doc.metadata
+            )
             docs_with_metadata.append(
                 Document(
                     page_content=(
