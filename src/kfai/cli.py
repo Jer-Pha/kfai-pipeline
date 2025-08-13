@@ -1,13 +1,18 @@
-from kfai.extractors import fetch_raw_data, process_failed_videos
+from kfai.extractors import (
+    fetch_raw_data,
+    process_failed_videos,
+    transcribe_failures,
+)
 from kfai.loaders import build_vector_store, interactive_qa
 from kfai.transformers import clean_locally
 
 RESPONSE_MAP = {
     "1": fetch_raw_data.run,
     "2": process_failed_videos.run,
-    "3": clean_locally.run,
-    "4": build_vector_store.run,
-    "5": interactive_qa.run,
+    "3": transcribe_failures.run,
+    "4": clean_locally.run,
+    "5": build_vector_store.run,
+    "6": interactive_qa.run,
 }
 USER_MENU = """--- Welcome to KFAI ---
 
@@ -20,9 +25,10 @@ If you want to chain multiple functions, use '>' (e.g. "1>2>3").
 MENU_OPTIONS = {
     "1": "Load raw data from KFDB",
     "2": "Process failed video IDs",
-    "3": "Clean raw transcripts",
-    "4": "Update the vector store",
-    "5": "Interact with the Query Agent",
+    "3": "Transcribe failed videos",
+    "4": "Clean raw transcripts",
+    "5": "Update the vector store",
+    "6": "Interact with the Query Agent",
 }
 
 
@@ -60,4 +66,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
     main()

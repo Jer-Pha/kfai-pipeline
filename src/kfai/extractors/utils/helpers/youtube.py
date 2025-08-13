@@ -1,11 +1,20 @@
+import math
 from datetime import datetime
+from pathlib import Path
 
 import googleapiclient.discovery as ytapi
 from googleapiclient.errors import HttpError
 from isodate import parse_duration
 from isodate.duration import Duration
+from yt_dlp import YoutubeDL
 
-from kfai.extractors.utils.config import YOUTUBE_API_KEY
+from kfai.extractors.utils.config import (
+    BASE_YT_DLP_OPTIONS,
+    CHUNK_THRESHOLD_SECONDS,
+    WHISPER_OUTPUT_DIR,
+    YOUTUBE_API_KEY,
+    YT_COOKIE_FILE,
+)
 from kfai.extractors.utils.types import VideoMetadata
 
 
@@ -59,3 +68,64 @@ def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
     except KeyError as e:
         print(f"Error accessing a missing key in YouTube data: {e}")
         return None
+
+
+def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
+    """
+    Downloads audio for a video in one or more chunks, using a single, unified logic.
+    - Videos are always processed in chunks, even if there's only one.
+    - Handles authentication using a cookie file for all requests.
+    Returns a tuple: (list_of_audio_paths, chunk_duration_in_seconds)
+    """
+    if not duration:
+        print(f"  !! Could not find duration for {video_id}. Cannot download.")
+        return None
+
+    base_options = BASE_YT_DLP_OPTIONS.copy()
+
+    if YT_COOKIE_FILE.exists():
+        base_options["cookiefile"] = YT_COOKIE_FILE
+
+    chunk_paths = []
+    num_chunks = math.ceil(duration / CHUNK_THRESHOLD_SECONDS)
+    if num_chunks > 1:
+        print(
+            f"  -> Video duration ({duration}s) exceeds threshold. Splitting"
+            f" into {num_chunks} chunk(s)."
+        )
+
+    for i in range(num_chunks):
+        start_time = i * CHUNK_THRESHOLD_SECONDS
+        chunk_path = WHISPER_OUTPUT_DIR / f"{video_id}_chunk_{i+1}.m4a"
+
+        chunk_paths.append(chunk_path)
+
+        if chunk_path.exists():
+            print(
+                f"  -> Chunk {i+1}/{num_chunks} for {video_id} already exists."
+                " Skipping download."
+            )
+            continue
+
+        print(f"  -> Downloading chunk {i+1}/{num_chunks}...")
+        options = base_options.copy()
+        options["outtmpl"] = chunk_path
+        options["postprocessor_args"] = {
+            "ffmpeg": [
+                "-ss",
+                str(start_time),
+                "-t",
+                str(CHUNK_THRESHOLD_SECONDS + 1),  # 1 second buffer
+            ]
+        }
+
+        try:
+            with YoutubeDL(options) as ydl:
+                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+        except Exception as e:
+            print(f"  !! Error downloading chunk {i+1} for {video_id}: {e}")
+            if chunk_path.exists():
+                chunk_path.unlink()
+            return None
+
+    return chunk_paths

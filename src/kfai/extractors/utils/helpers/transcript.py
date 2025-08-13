@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Iterable
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from whisper import Whisper
 from youtube_transcript_api import (
     FetchedTranscriptSnippet,
     YouTubeTranscriptApi,
@@ -161,3 +163,29 @@ def chunk_transcript_with_overlap(
             current_search_position = chunk_start_char_index + 1
 
     return final_chunks
+
+
+def transcribe_with_whisper(
+    audio_path: Path, whisper_model: Whisper
+) -> list[TranscriptSnippet] | None:
+    """Transcribes audio using the pre-loaded Whisper model."""
+    if not whisper_model:
+        return None
+    try:
+        result = whisper_model.transcribe(
+            str(audio_path), verbose=True, language="en", fp16=False
+        )
+
+        # Reformat to match the youtube_transcript_api structure
+        transcript_data = []
+        for segment in result.get("segments", []):
+            snippet: TranscriptSnippet = {
+                "text": segment["text"].strip(),
+                "start": round(segment["start"], 2),
+                "duration": round(segment["end"] - segment["start"], 2),
+            }
+            transcript_data.append(snippet)
+        return transcript_data
+    except Exception as e:
+        print(f"  !! Error transcribing audio at {audio_path}: {e}")
+        return None
