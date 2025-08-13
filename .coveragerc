@@ -7,12 +7,9 @@ omit =
 [report]
 exclude_lines =
     pragma: no cover
-    def __repr__
-    if __name__ == .__main__.:
     pass
-    raise NotImplementedError
-    raise ImportError
+
 
 [html]
 directory = coverage_html
-title = KF-AI Coverage Report
+title = KFAI Coverage Report
