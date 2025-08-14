@@ -7,11 +7,12 @@ from googleapiclient.errors import HttpError
 from isodate import parse_duration
 from isodate.duration import Duration
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import download_range_func
 
 from kfai.extractors.utils.config import (
     BASE_YT_DLP_OPTIONS,
     CHUNK_THRESHOLD_SECONDS,
-    WHISPER_OUTPUT_DIR,
+    TEMP_DATA_DIR,
     YOUTUBE_API_KEY,
     YT_COOKIE_FILE,
 )
@@ -88,15 +89,11 @@ def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
 
     chunk_paths = []
     num_chunks = math.ceil(duration / CHUNK_THRESHOLD_SECONDS)
-    if num_chunks > 1:
-        print(
-            f"  -> Video duration ({duration}s) exceeds threshold. Splitting"
-            f" into {num_chunks} chunk(s)."
-        )
 
     for i in range(num_chunks):
         start_time = i * CHUNK_THRESHOLD_SECONDS
-        chunk_path = WHISPER_OUTPUT_DIR / f"{video_id}_chunk_{i+1}.m4a"
+        end_time = start_time + CHUNK_THRESHOLD_SECONDS
+        chunk_path = TEMP_DATA_DIR / f"{video_id}_chunk_{i+1}.m4a"
 
         chunk_paths.append(chunk_path)
 
@@ -110,14 +107,9 @@ def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
         print(f"  -> Downloading chunk {i+1}/{num_chunks}...")
         options = base_options.copy()
         options["outtmpl"] = chunk_path
-        options["postprocessor_args"] = {
-            "ffmpeg": [
-                "-ss",
-                str(start_time),
-                "-t",
-                str(CHUNK_THRESHOLD_SECONDS + 1),  # 1 second buffer
-            ]
-        }
+        options["download_ranges"] = download_range_func(
+            None, [(start_time, end_time)]
+        )
 
         try:
             with YoutubeDL(options) as ydl:

@@ -10,8 +10,8 @@ from kfai.extractors.utils.config import (
     CHUNK_THRESHOLD_SECONDS,
     FAILED_VIDEOS_FILE,
     SKIP_LIST,
+    TEMP_DATA_DIR,
     WHISPER_MODEL,
-    WHISPER_OUTPUT_DIR,
 )
 from kfai.extractors.utils.helpers.transcript import (
     chunk_transcript_with_overlap,
@@ -20,9 +20,8 @@ from kfai.extractors.utils.helpers.transcript import (
 from kfai.extractors.utils.helpers.youtube import download_audio_handler
 
 
-# --- Main Execution ---
 def run() -> None:
-    WHISPER_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    TEMP_DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not FAILED_VIDEOS_FILE.exists():
         print(f"Error: Input file '{FAILED_VIDEOS_FILE}' not found.")
         print("Please create it with a list of video metadata to process.")
