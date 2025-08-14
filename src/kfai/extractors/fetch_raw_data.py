@@ -93,7 +93,7 @@ def run() -> None:
                     )
 
                     # Rate limiting
-                    sleep_duration = uniform(2, 5)  # Wait 2 to 5 seconds
+                    sleep_duration = uniform(2, 4)  # Wait 2 to 4 seconds
                     print(
                         f"   ...waiting for {sleep_duration:.2f} seconds to avoid"
                         " rate-limiting."

@@ -14,7 +14,6 @@ from kfai.extractors.utils.config import (
     CHUNK_THRESHOLD_SECONDS,
     TEMP_DATA_DIR,
     YOUTUBE_API_KEY,
-    YT_COOKIE_FILE,
 )
 from kfai.extractors.utils.types import VideoMetadata
 
@@ -84,9 +83,6 @@ def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
 
     base_options = BASE_YT_DLP_OPTIONS.copy()
 
-    if YT_COOKIE_FILE.exists():
-        base_options["cookiefile"] = YT_COOKIE_FILE
-
     chunk_paths = []
     num_chunks = math.ceil(duration / CHUNK_THRESHOLD_SECONDS)
 
@@ -106,7 +102,7 @@ def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
 
         print(f"  -> Downloading chunk {i+1}/{num_chunks}...")
         options = base_options.copy()
-        options["outtmpl"] = chunk_path
+        options["outtmpl"] = str(chunk_path)
         options["download_ranges"] = download_range_func(
             None, [(start_time, end_time)]
         )

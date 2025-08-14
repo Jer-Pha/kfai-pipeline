@@ -173,7 +173,7 @@ def transcribe_with_whisper(
         return None
     try:
         result = whisper_model.transcribe(
-            str(audio_path), verbose=True, language="en", fp16=False
+            str(audio_path), verbose=False, language="en", fp16=False
         )
 
         # Reformat to match the youtube_transcript_api structure

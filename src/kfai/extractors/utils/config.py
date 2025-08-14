@@ -24,7 +24,6 @@ SQLITE_DB_PATH = DATA_DIR / SQLITE_DB_NAME
 VIDEOS_TO_SKIP_FILE = DATA_DIR / "skipped_videos.json"
 FAILED_VIDEOS_FILE = DATA_DIR / "failures_to_transcribe.json"
 TEMP_DATA_DIR = DATA_DIR / "temp"
-YT_COOKIE_FILE = DATA_DIR / "www.youtube.com_cookies.txt"
 
 # Whisper / YoutubeDL
 WHISPER_MODEL = "medium.en"
@@ -39,6 +38,7 @@ BASE_YT_DLP_OPTIONS = {
         ),
     },
     "quiet": True,
+    "cookiesfrombrowser": ("chrome",),
 }
 SKIP_LIST = {
     "ahLoo444NXk",  # Deleted
