@@ -97,13 +97,15 @@ This launches the interactive menu for accessing the various pipeline stages:
 --- Welcome to KFAI ---
 
 What would you like to do?
-    1. Load raw data from KFDB
-    2. Process failed video IDs
-    3. Clean raw transcripts
-    4. Update the vector store
-    5. Interact with the Query Agent
+  1. Load raw data from KFDB
+  2. Process failed video IDs
+  3. Transcribe failed videos
+  4. Clean raw transcripts
+  5. Update the vector store
+  6. Interact with the Query Agent
 
-Enter the number of your choice (or 'q' to quit):
+Enter the number of your choice (or 'q' to quit).
+If you want to chain multiple functions, use '>' (e.g. "1>2>3").
 ```
 
 ## Note on Data Sources
