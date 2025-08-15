@@ -118,13 +118,14 @@ class QueryAgent:
                 and video_id in result
                 and str(int(start_time)) in result
             ):
-                if "timestamps" not in grouped_sources[video_id]:
-                    grouped_sources[video_id]["timestamps"] = set()
-                grouped_sources[video_id]["timestamps"].add(int(start_time))
-                if "metadata" not in grouped_sources[video_id]:
-                    grouped_sources[video_id]["metadata"] = metadata
+                if video_id not in grouped_sources:
+                    grouped_sources[video_id] = GroupedSourceData(
+                        timestamps=set(), metadata=metadata
+                    )
                     # Remove chunk-specific text for video-wide metadata
                     grouped_sources[video_id]["metadata"]["text"] = ""
+
+                grouped_sources[video_id]["timestamps"].add(int(start_time))
 
         if not grouped_sources:
             return []
@@ -340,7 +341,7 @@ class QueryAgent:
         end = time.time()
         print(f"\n...response took {format_duration(end - start)}.")
 
-    def process_query(self, query: str) -> None:
+    def process_query(self, query: str, is_gui: bool = False) -> str | None:
         """Processes a single user query from retrieval to final output.
 
         This method serves as the main entry point for the agent. It
@@ -358,14 +359,65 @@ class QueryAgent:
         """
 
         start = time.time()
+
         docs, topics = self._retrieve_documents(query)
 
-        if not docs:
+        if not docs and is_gui:
+            return "I could not find any relevant documents to answer your question. Please try rephrasing."
+        elif not docs:
             print(
                 "  !!  WARNING: No documents found, skipping this question..."
             )
-            return
+            return None
 
         docs_with_metadata = self._format_documents_for_context(docs)
+
         result = self._generate_response(query, docs_with_metadata, topics)
-        self._present_results(result, docs, start)
+
+        if not result and is_gui:
+            return "The model did not generate a response. Please try again."
+
+        if is_gui:
+            final_response = self._format_response_for_gui(result, docs)
+        else:
+            self._present_results(result, docs, start)
+
+        end = time.time()
+        print(f"\n...response took {format_duration(end - start)}.")
+
+        return final_response if is_gui else None
+
+    def _format_response_for_gui(
+        self, result: str, docs: list[Document]
+    ) -> str:
+        """Formats the final result and sources into a single Markdown string."""
+        structured_sources = self._get_structured_sources(result, docs)
+
+        response_parts = [result]
+
+        if structured_sources:
+            response_parts.append("\n\n---\n**Sources:**")
+            for video_data in structured_sources:
+                # Video Title and Link
+                video_link = (
+                    f"[{video_data['title']}]({video_data['video_href']})"
+                )
+                response_parts.append(f"\n\n**Video: {video_link}**")
+
+                # Show Name
+                response_parts.append(
+                    f"*   **Show:** {video_data['show_name']}"
+                )
+
+                # Timestamps
+                time_links = ", ".join(
+                    f"[{ref['formatted_time']}]({ref['timestamp_href']})"
+                    for ref in video_data["references"]
+                )
+                response_parts.append(f"*   **Referenced at:** {time_links}")
+        else:
+            response_parts.append(
+                "\n\n---\n**Sources:**\n- No direct sources cited in the response."
+            )
+
+        return "\n".join(response_parts)

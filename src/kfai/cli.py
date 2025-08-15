@@ -3,7 +3,7 @@ from kfai.extractors import (
     process_failed_videos,
     transcribe_failures,
 )
-from kfai.loaders import build_vector_store, interactive_qa
+from kfai.loaders import build_vector_store, gradio_app, interactive_qa
 from kfai.transformers import clean_locally
 
 RESPONSE_MAP = {
@@ -13,6 +13,7 @@ RESPONSE_MAP = {
     "4": clean_locally.run,
     "5": build_vector_store.run,
     "6": interactive_qa.run,
+    "7": gradio_app.run,
 }
 USER_MENU = """--- Welcome to KFAI ---
 
@@ -28,7 +29,8 @@ MENU_OPTIONS = {
     "3": "Transcribe failed videos",
     "4": "Clean raw transcripts",
     "5": "Update the vector store",
-    "6": "Interact with the Query Agent",
+    "6": "Interact with the Query Agent (CLI)",
+    "7": "Interact with the Query Agent (GUI)",
 }
 
 

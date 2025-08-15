@@ -78,7 +78,11 @@ def _build_filter(
     return None
 
 
-def get_filter(query: str, show_names: list[str], hosts: list[str]) -> tuple[
+def get_filter(
+    query: str,
+    show_names: list[str],
+    hosts: list[str],
+) -> tuple[
     str,
     dict[
         str,
@@ -106,16 +110,9 @@ def get_filter(query: str, show_names: list[str], hosts: list[str]) -> tuple[
     print("Building filter...")
     print(f"  Model: {PARSING_MODEL}")
 
-    print(" -> Parsing shows...")
     shows_list = parse_shows(query, show_names, llm)
-
-    print(" -> Parsing hosts...")
     hosts_list = parse_hosts(query, hosts, llm)
-
-    print(" -> Parsing year range...", end="")
     year_filter, years = parse_year_range(query, llm)
-
-    print(" -> Parsing topics...")
     topics_list = parse_topics(query, shows_list, hosts_list, years, llm)
 
     filter_dict = _build_filter(
