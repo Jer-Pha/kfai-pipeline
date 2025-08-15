@@ -38,7 +38,7 @@ BASE_YT_DLP_OPTIONS = {
         ),
     },
     "quiet": True,
-    "cookiesfrombrowser": ("chrome",),
+    "cookiesfrombrowser": ("firefox",),
 }
 SKIP_LIST = {
     "ahLoo444NXk",  # Deleted
