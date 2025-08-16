@@ -1,11 +1,61 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "kfai"
 version = "0.9.0"
+description = "An ETL pipeline for a RAG-based Q&A agent that specializes in Kinda Funny content."
+authors = [
+    {name = "Jeremy Phares", email = "jeremy.phares.dev@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
 
 [project.scripts]
 kfai = "kfai.cli:main"
 
+[tool.poetry]
+name = "kfai"
+version = "0.9.0"
+description = "An ETL pipeline for a RAG-based Q&A agent that specializes in Kinda Funny content."
+authors = ["Jeremy Phares <jeremy.phares.dev@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "kfai", from = "src" }
+]
+
+[tool.poetry.dependencies]
+gradio = "5.42.0"
+isodate = "0.7.2"
+langchain = "0.3.25"
+langchain-huggingface = "0.3.0"
+langchain-ollama = "0.3.4"
+langchain-postgres = "0.0.15"
+mysql-connector-python = "9.3.0"
+openai-whisper = {git = "https://github.com/openai/whisper.git", rev = "c0d2f624c09dc18e709e37c2ad90c039a4eb72a2"}
+python-dotenv = "1.1.0"
+sqlalchemy = "2.0.41"
+tqdm = "4.67.1"
+yt-dlp = "2025.8.13.233032.dev0"
+langchain-core = "0.3.69"
+youtube-transcript-api = "1.2.1"
+torch = {version = "^2.8.0", source = "pytorch"}
+torchvision = {version = "^0.23.0", source = "pytorch"}
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu129"
+priority = "explicit"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+pytest-mock = "^3.14.1"
+mypy = "^1.17.1"
+mypy-extensions = "^1.1.0"
+ruff = "^0.12.9"
+deptry = "^0.23.1"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
