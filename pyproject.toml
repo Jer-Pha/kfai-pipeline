@@ -28,20 +28,20 @@ packages = [
 [tool.poetry.dependencies]
 gradio = "5.42.0"
 isodate = "0.7.2"
-langchain = "0.3.25"
-langchain-huggingface = "0.3.0"
-langchain-ollama = "0.3.4"
+langchain = "0.3.27"
+langchain-core = "0.3.74"
+langchain-huggingface = "0.3.1"
+langchain-ollama = "0.3.6"
 langchain-postgres = "0.0.15"
-mysql-connector-python = "9.3.0"
+mysql-connector-python = "9.4.0"
 openai-whisper = {git = "https://github.com/openai/whisper.git", rev = "c0d2f624c09dc18e709e37c2ad90c039a4eb72a2"}
-python-dotenv = "1.1.0"
-sqlalchemy = "2.0.41"
-tqdm = "4.67.1"
-yt-dlp = "2025.8.13.233032.dev0"
-langchain-core = "0.3.69"
-youtube-transcript-api = "1.2.1"
+python-dotenv = "1.1.1"
+sqlalchemy = "2.0.43"
 torch = {version = "^2.8.0", source = "pytorch"}
 torchvision = {version = "^0.23.0", source = "pytorch"}
+tqdm = "4.67.1"
+youtube-transcript-api = "1.2.2"
+yt-dlp = "2025.8.11"
 
 [[tool.poetry.source]]
 name = "pytorch"
