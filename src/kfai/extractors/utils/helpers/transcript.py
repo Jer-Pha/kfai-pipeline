@@ -44,10 +44,8 @@ def get_raw_transcript_data(
             or "This video is age-restricted" in error
         ):
             return video_id
-        elif (
-            "No transcripts were found for any of the requested language"
-            " codes: ['en']"
-        ) in error:
+
+        if "No transcripts were found" in error:
             try:
                 print(
                     "  ...Non-English subtitles found, attempting workaround."

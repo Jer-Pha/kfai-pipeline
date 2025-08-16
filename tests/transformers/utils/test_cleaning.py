@@ -1,112 +1,162 @@
-from typing import TypeGuard
+import json
+from unittest.mock import ANY, MagicMock, call
 
-from kfai.core.types import CompleteVideoRecord, TranscriptChunk
-from kfai.transformers.utils.cleaning import clean_transcript
+import pytest
 
-
-class MockLLM:
-    """Mock LLM for testing transcript cleaning"""
-
-    def invoke(self, prompt_list: list[dict[str, str]]) -> str:
-        user_prompt = prompt_list[1]["content"]
-        if "everybody this is greg miller" in user_prompt.lower():
-            return "Hey what's up everybody, this is Greg Miller."
-        if "andy tim were talking" in user_prompt.lower():
-            return "Andy Cortez and Tim Gettys were discussing PlayStation."
-        return user_prompt.capitalize() + "."
+# The module we are testing
+from kfai.transformers.utils import cleaning as cleaning_utils
 
 
-def is_valid_complete_video_record(
-    data: dict,
-) -> TypeGuard[CompleteVideoRecord]:
-    """Validate that a dict matches CompleteVideoRecord structure"""
-    required_fields = {
-        "id": int,
-        "video_id": str,
-        "title": str,
-        "show_name": str,
-        "hosts": list,
-        "published_at": int,
-        "duration": int,
-        "description": str,
-        "transcript_chunks": list,
+# --- Corrected Fixture ---
+@pytest.fixture
+def mock_deps(mocker):
+    """A fixture to mock all external dependencies of clean_transcript."""
+    # --- KEY CHANGE: Mock the logger object directly ---
+    mock_logger = mocker.patch("kfai.transformers.utils.cleaning.logger")
+
+    # Mock helper functions
+    mock_clean_response = mocker.patch(
+        "kfai.transformers.utils.cleaning.clean_response"
+    )
+    mock_clean_text_chunk = mocker.patch(
+        "kfai.transformers.utils.cleaning.clean_text_chunk"
+    )
+
+    # Mock LLM and its invoke method
+    mock_llm = MagicMock()
+    mock_llm.invoke = MagicMock()
+
+    # Mock progress bar
+    mock_tqdm = mocker.patch("kfai.transformers.utils.cleaning.tqdm")
+    mock_progress_bar = mock_tqdm.return_value
+
+    # Mock prompts and json.dumps
+    mocker.patch(
+        "kfai.transformers.utils.cleaning.SYSTEM_PROMPT", "System prompt."
+    )
+    mocker.patch(
+        "kfai.transformers.utils.cleaning.USER_PROMPT",
+        "User prompt: {metadata} {chunk}",
+    )
+    mocker.patch("json.dumps", return_value="{}")
+
+    # Mock print for console output
+    mock_print = mocker.patch("builtins.print")
+
+    return {
+        "clean_response": mock_clean_response,
+        "clean_text_chunk": mock_clean_text_chunk,
+        "llm": mock_llm,
+        "logger": mock_logger,  # This is now the direct mock of the logger
+        "progress_bar": mock_progress_bar,
+        "print": mock_print,
     }
 
-    return all(
-        isinstance(data.get(field), type_)
-        for field, type_ in required_fields.items()
+
+# --- Test Data ---
+SAMPLE_VIDEO_RECORD = {
+    "id": 1,
+    "video_id": "vid1",
+    "show_name": "Show A",
+    "hosts": ["Host A"],
+    "title": "Video Title",
+    "description": "Description",
+    "published_at": 123,
+    "duration": 456,
+    "transcript_chunks": [
+        {"text": "chunk 1 raw", "start": 10.0},
+        {"text": "chunk 2 raw", "start": 20.0},
+    ],
+}
+
+# --- Test Suite ---
+
+
+def test_clean_transcript_happy_path(mock_deps):
+    mock_deps["clean_text_chunk"].side_effect = [
+        "chunk 1 clean",
+        "chunk 2 clean",
+    ]
+    mock_deps["llm"].invoke.side_effect = ["llm response 1", "llm response 2"]
+    mock_deps["clean_response"].side_effect = [
+        "cleaned response 1",
+        "cleaned response 2",
+    ]
+
+    cleaned_data = cleaning_utils.clean_transcript(
+        SAMPLE_VIDEO_RECORD, MagicMock(), mock_deps["llm"]
     )
 
-
-def is_valid_transcript_chunk(
-    data: dict,
-) -> TypeGuard[TranscriptChunk]:
-    """Validate that a dict matches CompleteVideoRecord structure"""
-    required_fields = {"text": str, "start": float}
-
-    return all(
-        isinstance(data.get(field), type_)
-        for field, type_ in required_fields.items()
-    )
-
-
-def test_transcript_cleaning_basic(
-    sample_raw_data: CompleteVideoRecord,
-) -> None:
-    """Test basic transcript cleaning functionality and type safety"""
-    cleaned_data = clean_transcript(sample_raw_data, "test.json", MockLLM())
-
-    # Validate data and types
     assert cleaned_data is not None
-    assert is_valid_complete_video_record(cleaned_data)
-    assert all(
-        is_valid_transcript_chunk(chunk)
-        for chunk in cleaned_data["transcript_chunks"]
+    assert len(cleaned_data["transcript_chunks"]) == 2
+    assert cleaned_data["transcript_chunks"][0]["text"] == "cleaned response 1"
+    assert mock_deps["progress_bar"].update.call_count == 2
+    mock_deps["progress_bar"].close.assert_called_once()
+
+
+def test_clean_transcript_llm_call_failure(mock_deps):
+    """
+    Tests that the function handles an LLM invocation error gracefully.
+    """
+    # 1. Arrange
+    mock_deps["llm"].invoke.side_effect = Exception("LLM connection error")
+    relative_path_mock = MagicMock()
+    relative_path_mock.__str__.return_value = "path/to/video.json"
+
+    # 2. Act
+    result = cleaning_utils.clean_transcript(
+        SAMPLE_VIDEO_RECORD, relative_path_mock, mock_deps["llm"]
     )
 
-    # Test field values are preserved
-    for field in CompleteVideoRecord.__annotations__:
-        if field != "transcript_chunks":
-            assert field in cleaned_data
-            assert cleaned_data[field] == sample_raw_data[field]
-            assert isinstance(
-                cleaned_data[field], type(sample_raw_data[field])
-            )
-            if field == "hosts":
-                assert all(
-                    isinstance(host, str) for host in cleaned_data[field]
-                )
-        else:
-            assert isinstance(cleaned_data["transcript_chunks"], list)
+    # 3. Assert
+    assert result is None
 
-    # Test cleaning functionality
-    cleaned_text = cleaned_data["transcript_chunks"][0]["text"]
-    assert cleaned_text.startswith("Hey")
-    assert "Greg Miller" in cleaned_text
+    # --- CORRECTED ASSERTIONS ---
+    # Verify that error was logged twice
+    assert mock_deps["logger"].error.call_count == 2
 
-
-def test_transcript_cleaning_multiple_chunks(
-    sample_raw_data: CompleteVideoRecord,
-) -> None:
-    """Test cleaning with multiple transcript chunks"""
-    # Add a second chunk
-    sample_raw_data["transcript_chunks"].append(
-        TranscriptChunk(
-            text="andy tim were talking about playstation",
-            start=2.5,
-        )
+    # Check the content of the first error log call
+    first_error_call = mock_deps["logger"].error.call_args_list[0]
+    expected_message = (
+        f"LLM call failed on chunk in {relative_path_mock} starting at 10.0s."
     )
-    raw_data_length = len(sample_raw_data["transcript_chunks"])
+    assert first_error_call.args[0] == expected_message
 
-    # Clean and validate
-    cleaned_data = clean_transcript(sample_raw_data, "test.json", MockLLM())
-    assert cleaned_data is not None
-    assert is_valid_complete_video_record(cleaned_data)
-    assert len(cleaned_data["transcript_chunks"]) == raw_data_length
+    # Check that the second call (the traceback) was made with ANY string
+    second_error_call = mock_deps["logger"].error.call_args_list[1]
+    assert second_error_call == call(ANY)
 
-    # Check cleaning of second chunk
-    print(cleaned_data["transcript_chunks"])
-    second_chunk = cleaned_data["transcript_chunks"][1]
-    assert is_valid_transcript_chunk(second_chunk)
-    assert "Andy Cortez" in second_chunk["text"]
-    assert "Tim Gettys" in second_chunk["text"]
+    mock_deps["progress_bar"].close.assert_called_once()
+
+
+def test_clean_transcript_general_failure(mock_deps):
+    """
+    Tests that the function handles unexpected errors (e.g., missing data in video_data).
+    """
+    # 1. Arrange
+    malformed_record = {"video_id": "vid1", "transcript_chunks": None}
+    relative_path_mock = MagicMock()
+    relative_path_mock.__str__.return_value = "path/to/video.json"
+
+    # 2. Act
+    result = cleaning_utils.clean_transcript(
+        malformed_record, relative_path_mock, mock_deps["llm"]
+    )
+
+    # 3. Assert
+    assert result is None
+
+    # --- CORRECTED ASSERTIONS ---
+    # Verify that error was logged twice
+    assert mock_deps["logger"].error.call_count == 2
+
+    # Check the content of the first error log call
+    first_error_call = mock_deps["logger"].error.call_args_list[0]
+    expected_message = f"An unexpected error occurred in clean_transcript() for {relative_path_mock}."
+    assert first_error_call.args[0] == expected_message
+
+    # Check that the second call (the traceback) was made with ANY string
+    second_error_call = mock_deps["logger"].error.call_args_list[1]
+    assert second_error_call == call(ANY)
+
+    mock_deps["progress_bar"].close.assert_not_called()

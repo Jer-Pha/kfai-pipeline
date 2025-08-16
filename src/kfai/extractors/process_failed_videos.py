@@ -11,6 +11,7 @@ from kfai.extractors.utils.helpers.youtube import get_youtube_data
 
 
 def run() -> None:
+    failed_ids: list[str] = []
     try:
         with VIDEOS_TO_SKIP_FILE.open("r", encoding="utf-8") as f:
             failed_ids = list(json.load(f))

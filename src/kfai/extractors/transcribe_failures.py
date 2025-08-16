@@ -25,6 +25,7 @@ def run() -> None:
     if not FAILED_VIDEOS_FILE.exists():
         print(f"Error: Input file '{FAILED_VIDEOS_FILE}' not found.")
         print("Please create it with a list of video metadata to process.")
+        return None
     else:
         print("Loading Whisper model (this may take a moment)...")
         try:
@@ -32,7 +33,7 @@ def run() -> None:
             print("Whisper model loaded successfully.")
         except Exception as e:
             print(f"Fatal: Could not load Whisper model. Error: {e}")
-            whisper_model = None
+            return None
 
         with FAILED_VIDEOS_FILE.open("r", encoding="utf-8") as f:
             videos_to_process: list[CompleteVideoRecord] = json.load(f)

@@ -34,7 +34,7 @@ def get_processed_chunk_ids() -> set[tuple[str, float]]:
                     and "start_time" in metadata
                 ):
                     processed_ids.add(
-                        (metadata["video_idz"], metadata["start_time"])
+                        (metadata["video_id"], metadata["start_time"])
                     )
     except Exception as e:
         print(

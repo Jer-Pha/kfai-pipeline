@@ -44,11 +44,15 @@ def check_data_integrity(
         return False
 
     assert raw_data["transcript_chunks"] is not None
+    assert cleaned_data["transcript_chunks"] is not None
     raw_transcript_chunks: list[TranscriptChunk] = raw_data[
         "transcript_chunks"
     ]
+    cleaned_transcript_chunks: list[TranscriptChunk] = cleaned_data[
+        "transcript_chunks"
+    ]
     raw_chunk_count = len(raw_transcript_chunks)
-    cleaned_chunk_count = len(raw_transcript_chunks)
+    cleaned_chunk_count = len(cleaned_transcript_chunks)
 
     if cleaned_chunk_count != raw_chunk_count:
         error_msg = (

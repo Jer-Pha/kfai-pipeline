@@ -62,7 +62,9 @@ def run() -> None:
             cleaned_video_data = _clean_transcript(
                 video_data, relative_path, llm
             )
-            assert cleaned_video_data is not None
+
+            if cleaned_video_data is None:
+                continue
 
             # Verify integrity of the cleaned data
             data_is_valid = _check_data_integrity(

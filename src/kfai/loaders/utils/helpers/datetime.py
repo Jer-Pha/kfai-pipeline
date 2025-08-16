@@ -11,9 +11,13 @@ def iso_string_to_epoch(date_string: str) -> int:
     if not date_string:
         return 0
 
-    dt_object = datetime.fromisoformat(date_string).replace(
-        tzinfo=timezone.utc
-    )
+    dt_object = datetime.fromisoformat(date_string)
+
+    # If the object is naive, assume UTC. If it's aware, convert it to UTC.
+    if dt_object.tzinfo is None:
+        dt_object = dt_object.replace(tzinfo=timezone.utc)
+    else:
+        dt_object = dt_object.astimezone(timezone.utc)
 
     return int(dt_object.timestamp())
 
