@@ -27,7 +27,7 @@ def test_load_raw_data_happy_path(mocker):
 
 
 @pytest.mark.parametrize(
-    "error", [json.JSONDecodeError("msg", "doc", 0), IOError("msg")]
+    "error", [json.JSONDecodeError("msg", "doc", 0), OSError("msg")]
 )
 def test_load_raw_data_handles_errors(mocker, error):
     """Tests that file read or JSON parsing errors are caught and logged."""
@@ -134,7 +134,7 @@ def test_save_cleaned_data_handles_exception(mocker):
     """Tests that an exception during file write is caught and logged."""
     # Arrange
     mock_path = MagicMock()
-    mocker.patch.object(mock_path, "open", side_effect=IOError("Disk full"))
+    mocker.patch.object(mock_path, "open", side_effect=OSError("Disk full"))
     mock_logger = mocker.patch("kfai.transformers.utils.helpers.logger")
     mocker.patch("traceback.format_exc")
 

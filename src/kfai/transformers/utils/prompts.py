@@ -20,7 +20,7 @@ EXAMPLES OF POSSIBLE CHANGES (INPUT → CLEANED):
   - "wing grety" → "Wayne Gretzky"
   - "final fantasy versus 13" → "Final Fantasy Versus XIII"
   - "game over greggy" → "GameOverGreggy"
-"""
+"""  # noqa: E501
 
 # Used with new data each LLM call
 USER_PROMPT = """

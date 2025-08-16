@@ -63,7 +63,8 @@ def main() -> None:
                     RESPONSE_MAP[cmd]()
                 break
         print(
-            f'Please enter a valid number from 1 to {len(MENU_OPTIONS)} or command chain (e.g. "1>2>3"):'
+            f"Please enter a valid number from 1 to {len(MENU_OPTIONS)} or"
+            ' command chain (e.g. "1>2>3"):'
         )
 
 

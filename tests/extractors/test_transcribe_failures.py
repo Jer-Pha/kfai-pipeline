@@ -65,7 +65,7 @@ def setup_path_mocks(mocker, mock_deps, output_exists=False):
     # This correctly mocks the three '/' operations
     mock_deps[
         "raw_json_dir_path"
-    ].__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = (
+    ].__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = (  # noqa: E501
         mock_output_path
     )
     mocker.patch.object(mock_output_path, "open", mocker.mock_open())
@@ -75,8 +75,8 @@ def setup_path_mocks(mocker, mock_deps, output_exists=False):
 
 
 def test_run_happy_path(mocker, mock_deps):
-    """
-    Tests the main success path: downloads, transcribes, chunks, saves, and cleans up.
+    """Tests the main success path: downloads, transcribes, chunks,
+    saves, and cleans up.
     """
     # Arrange
     mock_deps["failed_file_path"].exists.return_value = True

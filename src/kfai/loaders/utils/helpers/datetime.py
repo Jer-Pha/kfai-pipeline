@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def iso_string_to_epoch(date_string: str) -> int:
@@ -15,9 +15,9 @@ def iso_string_to_epoch(date_string: str) -> int:
 
     # If the object is naive, assume UTC. If it's aware, convert it to UTC.
     if dt_object.tzinfo is None:
-        dt_object = dt_object.replace(tzinfo=timezone.utc)
+        dt_object = dt_object.replace(tzinfo=UTC)
     else:
-        dt_object = dt_object.astimezone(timezone.utc)
+        dt_object = dt_object.astimezone(UTC)
 
     return int(dt_object.timestamp())
 
@@ -25,7 +25,7 @@ def iso_string_to_epoch(date_string: str) -> int:
 def format_duration(seconds: float) -> str:
     """Formats a duration in seconds into hours, minutes, and seconds."""
     hours = int(seconds // 3600)  # Integer division for hours
-    minutes = int((seconds % 3600)) // 60  # Remaining seconds for minutes
+    minutes = int(seconds % 3600) // 60  # Remaining seconds for minutes
     seconds = seconds % 60  # Remaining seconds - keep as float
 
     # Build the formatted string

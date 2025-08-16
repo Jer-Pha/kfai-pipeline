@@ -62,7 +62,7 @@ GET_SHOWS_PROMPT = """
     {query}
 
     RESPONSE:
-"""
+"""  # noqa: E501
 GET_HOSTS_PROMPT = """
     HOST NAMES:
     {hosts}
@@ -121,7 +121,7 @@ GET_HOSTS_PROMPT = """
     {query}
 
     RESPONSE:
-"""
+"""  # noqa: E501
 GET_YEARS_PROMPT = """
     INSTRUCTIONS
     You are a meticulous string analyzer. You have been provided a USER QUERY below. Your task is to **PARSE** this query for the following information and return a JSON object that matches the below formatting. You should **NOT** answer the user question, you **ONLY** need to parse the required information.
@@ -219,7 +219,7 @@ GET_YEARS_PROMPT = """
     {query}
 
     RESPONSE:
-"""
+"""  # noqa: E501
 GET_TOPICS_PROMPT = """
     METADATA:
     {metadata}
@@ -289,7 +289,7 @@ GET_TOPICS_PROMPT = """
     {query}
 
     RESPONSE:
-"""
+"""  # noqa: E501
 QA_PROMPT = """
     CONTEXT:
     {context}
@@ -320,4 +320,4 @@ QA_PROMPT = """
     {input}
 
     RESPONSE:
-"""
+"""  # noqa: E501

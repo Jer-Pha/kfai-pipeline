@@ -1,4 +1,3 @@
-import json
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
@@ -130,8 +129,8 @@ def test_clean_transcript_llm_call_failure(mock_deps):
 
 
 def test_clean_transcript_general_failure(mock_deps):
-    """
-    Tests that the function handles unexpected errors (e.g., missing data in video_data).
+    """Tests that the function handles unexpected errors (e.g., missing
+    data in video_data).
     """
     # 1. Arrange
     malformed_record = {"video_id": "vid1", "transcript_chunks": None}
@@ -152,7 +151,10 @@ def test_clean_transcript_general_failure(mock_deps):
 
     # Check the content of the first error log call
     first_error_call = mock_deps["logger"].error.call_args_list[0]
-    expected_message = f"An unexpected error occurred in clean_transcript() for {relative_path_mock}."
+    expected_message = (
+        "An unexpected error occurred in clean_transcript()"
+        f" for {relative_path_mock}."
+    )
     assert first_error_call.args[0] == expected_message
 
     # Check that the second call (the traceback) was made with ANY string

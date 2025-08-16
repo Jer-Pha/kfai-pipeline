@@ -1,4 +1,4 @@
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 from kfai.extractors.utils.types import RawVideoRecord, VideoMetadata
 
@@ -9,4 +9,4 @@ class TranscriptChunk(TypedDict):
 
 
 class CompleteVideoRecord(RawVideoRecord, VideoMetadata):
-    transcript_chunks: Optional[list[TranscriptChunk]]
+    transcript_chunks: list[TranscriptChunk] | None

@@ -1,5 +1,5 @@
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.documents import Document
@@ -69,7 +69,7 @@ def mocked_agent(mocker) -> QueryAgent:
     mock_llm = MagicMock(spec=OllamaLLM)
     agent = QueryAgent(llm=mock_llm)
     agent.mock_chain = mock_chain
-    # Mock the vector_store attribute directly on the instance for retrieval tests
+    # Mock the vector_store attribute directly on instance for retrieval tests
     agent.vector_store = MagicMock()
     return agent
 
@@ -135,9 +135,7 @@ def test_retrieve_documents_multiple_topics(mocker, mocked_agent):
         (SAMPLE_DOCS[1], 0.8),
         (SAMPLE_DOCS[0], 0.7),
     ]
-    mocked_agent.vector_store.similarity_search_with_relevance_scores.return_value = (
-        docs_with_scores
-    )
+    mocked_agent.vector_store.similarity_search_with_relevance_scores.return_value = docs_with_scores  # noqa: E501
 
     docs, _ = mocked_agent._retrieve_documents("query")
 
@@ -145,7 +143,7 @@ def test_retrieve_documents_multiple_topics(mocker, mocked_agent):
     assert len(docs) == 2
     # Assert that the call was made twice (once for each topic)
     assert (
-        mocked_agent.vector_store.similarity_search_with_relevance_scores.call_count
+        mocked_agent.vector_store.similarity_search_with_relevance_scores.call_count  # noqa: E501
         == 2
     )
 
@@ -176,8 +174,8 @@ def test_retrieve_documents_no_docs_found(mocker, mocked_agent):
 def test_retrieve_documents_multi_topic_breaks_at_context_limit(
     mocker, mocked_agent
 ):
-    """
-    Covers the break statement when CONTEXT_COUNT is reached during deduplication.
+    """Covers the break statement when CONTEXT_COUNT is reached during
+    deduplication.
     """
     # 1. Arrange
     # Patch the constant to a small number just for this test.
@@ -200,15 +198,13 @@ def test_retrieve_documents_multi_topic_breaks_at_context_limit(
             0.7,
         ),  # This doc should be ignored because the loop breaks.
     ]
-    mocked_agent.vector_store.similarity_search_with_relevance_scores.return_value = (
-        docs_with_scores
-    )
+    mocked_agent.vector_store.similarity_search_with_relevance_scores.return_value = docs_with_scores  # noqa: E501
 
     # 2. Act
     docs, _ = mocked_agent._retrieve_documents("query")
 
     # 3. Assert
-    # The length of the final docs list should be exactly the mocked CONTEXT_COUNT,
+    # The length of the final docs list should be exactly mocked CONTEXT_COUNT,
     # proving that the loop correctly broke after finding 2 documents.
     assert len(docs) == 2
 

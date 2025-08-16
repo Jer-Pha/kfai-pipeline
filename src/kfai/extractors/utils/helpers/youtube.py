@@ -72,7 +72,8 @@ def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
 
 def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
     """
-    Downloads audio for a video in one or more chunks, using a single, unified logic.
+    Downloads audio for a video in one or more chunks, using a single,
+    unified logic.
     - Videos are always processed in chunks, even if there's only one.
     - Handles authentication using a cookie file for all requests.
     Returns a tuple: (list_of_audio_paths, chunk_duration_in_seconds)
@@ -89,18 +90,18 @@ def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
     for i in range(num_chunks):
         start_time = i * CHUNK_THRESHOLD_SECONDS
         end_time = start_time + CHUNK_THRESHOLD_SECONDS
-        chunk_path = TEMP_DATA_DIR / f"{video_id}_chunk_{i+1}.m4a"
+        chunk_path = TEMP_DATA_DIR / f"{video_id}_chunk_{i + 1}.m4a"
 
         chunk_paths.append(chunk_path)
 
         if chunk_path.exists():
             print(
-                f"  -> Chunk {i+1}/{num_chunks} for {video_id} already exists."
-                " Skipping download."
+                f"  -> Chunk {i + 1}/{num_chunks} for {video_id} already"
+                " exists. Skipping download."
             )
             continue
 
-        print(f"  -> Downloading chunk {i+1}/{num_chunks}...")
+        print(f"  -> Downloading chunk {i + 1}/{num_chunks}...")
         options = base_options.copy()
         options["outtmpl"] = str(chunk_path)
         options["download_ranges"] = download_range_func(
@@ -111,7 +112,7 @@ def download_audio_handler(video_id: str, duration: int) -> list[Path] | None:
             with YoutubeDL(options) as ydl:
                 ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
         except Exception as e:
-            print(f"  !! Error downloading chunk {i+1} for {video_id}: {e}")
+            print(f"  !! Error downloading chunk {i + 1} for {video_id}: {e}")
             if chunk_path.exists():
                 chunk_path.unlink()
             return None

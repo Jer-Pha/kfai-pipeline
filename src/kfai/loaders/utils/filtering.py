@@ -1,5 +1,4 @@
 import re
-from typing import Union
 
 from langchain_ollama import OllamaLLM
 
@@ -27,12 +26,10 @@ def _build_filter(
     dict[
         str,
         list[
-            Union[
-                PGVectorShowName,
-                PGVectorHosts,
-                PGVectorPublishedAt,
-                dict[str, list[PGVectorText]],
-            ]
+            PGVectorShowName
+            | PGVectorHosts
+            | PGVectorPublishedAt
+            | dict[str, list[PGVectorText]]
         ],
     ]
     | None
@@ -40,12 +37,10 @@ def _build_filter(
     """Convert to filter for PGVector retriever"""
     print("  -> Combining filter...")
     filter_conditions: list[
-        Union[
-            PGVectorShowName,
-            PGVectorHosts,
-            PGVectorPublishedAt,
-            dict[str, list[PGVectorText]],
-        ]
+        PGVectorShowName
+        | PGVectorHosts
+        | PGVectorPublishedAt
+        | dict[str, list[PGVectorText]]
     ] = []
 
     if shows_list:
@@ -87,12 +82,10 @@ def get_filter(
     dict[
         str,
         list[
-            Union[
-                PGVectorShowName,
-                PGVectorHosts,
-                PGVectorPublishedAt,
-                dict[str, list[PGVectorText]],
-            ]
+            PGVectorShowName
+            | PGVectorHosts
+            | PGVectorPublishedAt
+            | dict[str, list[PGVectorText]]
         ],
     ]
     | None,

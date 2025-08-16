@@ -26,7 +26,7 @@ def run() -> None:
                 f"-> Found and loaded {len(videos_ids_to_skip)} previously"
                 " processed video IDs to skip this run."
             )
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(
                 f"-> Warning: Could not read or parse {VIDEOS_TO_SKIP_FILE}."
                 f" Starting with an empty set. Error: {e}"
@@ -95,8 +95,8 @@ def run() -> None:
                     # Rate limiting
                     sleep_duration = uniform(2, 4)  # Wait 2 to 4 seconds
                     print(
-                        f"   ...waiting for {sleep_duration:.2f} seconds to avoid"
-                        " rate-limiting."
+                        f"   ...waiting for {sleep_duration:.2f} seconds to"
+                        " avoid rate-limiting."
                     )
                     sleep(sleep_duration)
 
@@ -110,15 +110,15 @@ def run() -> None:
                                 "w", encoding="utf-8"
                             ) as f:
                                 json.dump(list(videos_ids_to_skip), f)
-                        except IOError as e:
+                        except OSError as e:
                             print(
                                 "FATAL: Could not write to log"
                                 f" file {VIDEOS_TO_SKIP_FILE}. Error: {e}"
                             )
                 else:
                     print(
-                        "Warning: Could not find YouTube API data for new video"
-                        f" ID: {video_id}"
+                        "Warning: Could not find YouTube API data for new"
+                        f" video ID: {video_id}"
                     )
 
     print("Processing complete.")

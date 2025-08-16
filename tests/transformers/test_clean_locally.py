@@ -1,4 +1,4 @@
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -136,5 +136,6 @@ def test_run_handles_critical_exception(mocker, mock_deps):
     # Verify that the critical error was logged
     mock_deps["logger"].critical.assert_called()
     mock_deps["print"].assert_any_call(
-        f"\n!! A critical error occurred. See {mock_deps['logs_dir']} for details."
+        f"\n!! A critical error occurred. See {mock_deps['logs_dir']} for"
+        " details."
     )

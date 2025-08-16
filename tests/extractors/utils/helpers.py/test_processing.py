@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,7 +10,9 @@ from kfai.extractors.utils.helpers import processing as processing_utils
 
 @pytest.fixture
 def mock_dependencies(mocker):
-    """A single fixture to mock all external dependencies of the process_video function."""
+    """A single fixture to mock all external dependencies of the
+    process_video function.
+    """
     # Mock the helper functions that are dependencies
     mock_get_transcript = mocker.patch(
         "kfai.extractors.utils.helpers.processing.get_raw_transcript_data"
@@ -60,8 +62,8 @@ SAMPLE_VIDEO_RECORD = {
 
 
 def test_process_video_happy_path(mock_dependencies):
-    """
-    Tests the main success path: transcript is found, chunked, and file is written.
+    """Tests the main success path: transcript is found, chunked, and
+    file is written.
     """
     # 1. Arrange
     mock_dependencies["output_path"].exists.return_value = False
@@ -83,7 +85,7 @@ def test_process_video_happy_path(mock_dependencies):
 
     # Verify the final record was written to file
     mock_dependencies["dump"].assert_called_once()
-    # Check that the 'transcript_chunks' key was added to the record before dumping
+    # Check that the 'transcript_chunks' key was added before dumping
     dumped_record = mock_dependencies["dump"].call_args[0][0]
     assert "transcript_chunks" in dumped_record
     assert dumped_record["transcript_chunks"] == [
@@ -92,7 +94,9 @@ def test_process_video_happy_path(mock_dependencies):
 
 
 def test_process_video_already_exists(mock_dependencies):
-    """Tests that the function exits early if the output file already exists."""
+    """Tests that the function exits early if the output file already
+    exists.
+    """
     # 1. Arrange
     mock_dependencies["output_path"].exists.return_value = True
 
@@ -113,9 +117,9 @@ def test_process_video_transcription_fails(mock_dependencies):
     """
     # 1. Arrange
     mock_dependencies["output_path"].exists.return_value = False
-    mock_dependencies["get_transcript"].return_value = (
-        "vid1"  # The failure signal
-    )
+    mock_dependencies[
+        "get_transcript"
+    ].return_value = "vid1"  # The failure signal
 
     # 2. Act
     result = processing_utils.process_video(SAMPLE_VIDEO_RECORD)
@@ -133,9 +137,9 @@ def test_process_video_empty_chunks(mock_dependencies):
     # 1. Arrange
     mock_dependencies["output_path"].exists.return_value = False
     mock_dependencies["get_transcript"].return_value = [{"text": "some text"}]
-    mock_dependencies["chunk_transcript"].return_value = (
-        []
-    )  # Empty list after chunking
+    mock_dependencies[
+        "chunk_transcript"
+    ].return_value = []  # Empty list after chunking
 
     # 2. Act
     result = processing_utils.process_video(SAMPLE_VIDEO_RECORD)

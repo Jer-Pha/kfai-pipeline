@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
-
 # The module we are testing
 from kfai.loaders.utils.helpers import database as db_utils
 
@@ -9,8 +7,8 @@ from kfai.loaders.utils.helpers import database as db_utils
 
 
 def test_get_processed_chunk_ids_happy_path(mocker):
-    """
-    Tests that the function correctly fetches and parses metadata from a mock DB.
+    """Tests that the function correctly fetches and parses metadata
+    from a mock DB.
     """
     # 1. Arrange
     # Mock the database rows that will be returned by the query
@@ -54,7 +52,7 @@ def test_get_processed_chunk_ids_db_error(mocker):
     # 2. Act
     processed_ids = db_utils.get_processed_chunk_ids()
 
-    # 3. Assert: The function should catch the exception and return an empty set
+    # 3. Assert: Function should catch the exception and return an empty set
     assert processed_ids == set()
 
 

@@ -37,7 +37,8 @@ def run() -> None:
     # 2. Get the set of chunks already in the database for resuming
     processed_chunks_set = get_processed_chunk_ids()
     print(
-        f"Found {len(processed_chunks_set)} chunks already in the LangChain collection."
+        f"Found {len(processed_chunks_set)} chunks already in the LangChain"
+        " collection."
     )
 
     # 3. Walk through the JSON files to find new documents
@@ -93,7 +94,8 @@ def run() -> None:
             # 5. Add documents to the vector store in batches
             if len(new_documents_batch) >= BATCH_SIZE:
                 print(
-                    f" -> Embedding and inserting batch of {len(new_documents_batch)} documents..."
+                    " -> Embedding and inserting batch of"
+                    f" {len(new_documents_batch)} documents..."
                 )
                 try:
                     vectorstore.add_documents(new_documents_batch)
@@ -105,7 +107,8 @@ def run() -> None:
     # 6. Insert any final remaining documents
     if new_documents_batch:
         print(
-            f" -> Embedding and inserting final batch of {len(new_documents_batch)} documents..."
+            " -> Embedding and inserting final batch of"
+            f" {len(new_documents_batch)} documents..."
         )
         vectorstore.add_documents(new_documents_batch)
         total_added += len(new_documents_batch)

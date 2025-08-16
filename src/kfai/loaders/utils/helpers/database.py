@@ -13,14 +13,14 @@ def get_processed_chunk_ids() -> set[tuple[str, float]]:
     # as LangChain's PGVector doesn't have a built-in "list all" method.
     try:
         with create_engine(POSTGRES_DB_PATH).connect() as connection:
-            # Query the cmetadata column of the embedding table for this collection
+            # Query the cmetadata column of the embedding table for collection
             stmt = text(
-                f"""
+                """
                 SELECT cmetadata FROM langchain_pg_embedding
                 WHERE collection_id = (
                     SELECT uuid FROM langchain_pg_collection WHERE name = :collection_name
                 )
-            """
+                """  # noqa: E501
             )
             results = connection.execute(
                 stmt, {"collection_name": COLLECTION_NAME}
@@ -75,7 +75,7 @@ def get_unique_metadata(engine: Engine) -> tuple[list[str], list[str]]:
             GROUP BY host
             HAVING COUNT(DISTINCT video_id) >= 5
             ORDER BY host;
-        """
+            """  # noqa: E501
         )
         host_result = connection.execute(host_query)
         for row in host_result:

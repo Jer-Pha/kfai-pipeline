@@ -19,7 +19,9 @@ def mock_yt_transcript_api(mocker):
 
 
 def test_get_raw_transcript_data_happy_path(mock_yt_transcript_api):
-    """Tests the successful fetching and normalization of an English transcript."""
+    """Tests the successful fetching and normalization of an English
+    transcript.
+    """
     # Arrange: Simulate the API returning transcript snippets
     mock_snippet = MagicMock()
     mock_snippet.text = "Hello world"
@@ -99,7 +101,7 @@ def test_get_raw_transcript_data_translation_fails(mock_yt_transcript_api):
     )
     mock_yt_transcript_api.list.return_value = [mock_translatable_transcript]
 
-    # Act & Assert: The function should not crash and should return None or video_id
+    # Act & Assert: Function shouldn't crash and should return None or video_id
     # In this case, it will fall through to the generic error after the loop
     assert transcript_utils.get_raw_transcript_data("vid1") is None
 
@@ -143,7 +145,7 @@ def test_chunk_transcript_with_overlap():
     assert chunks[0]["start"] == 0.0
     # The last chunk's text must contain the end of the original text
     assert "final sentence" in chunks[-1]["text"]
-    # The start time of the last chunk should correspond to where its content begins
+    # The start time of the last chunk should correspond to its content
     assert chunks[-1]["start"] >= 2.0
 
 
@@ -154,7 +156,8 @@ def test_chunk_transcript_empty_input():
 
 def test_chunk_transcript_fallback_search(mocker):
     """
-    Tests the fallback logic where a chunk is not found from the current search position.
+    Tests the fallback logic where a chunk is not found from the
+    current search position.
     This is an edge case for text splitters that might modify text.
     """
     # Arrange

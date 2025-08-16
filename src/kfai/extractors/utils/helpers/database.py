@@ -1,5 +1,4 @@
 import sqlite3
-from typing import Optional
 
 import mysql.connector
 
@@ -63,11 +62,15 @@ def _export_mysql_to_sqlite(mysql_config: MySQLConfig) -> None:
 
         # Fetch from MySQL and insert to SQLite (videos_video)
         mysql_cursor.execute(
-            "SELECT id, video_id, show_id, producer_id FROM videos_video WHERE channel_id < 3"
+            "SELECT id, video_id, show_id, producer_id FROM videos_video WHERE"
+            " channel_id < 3"
         )
         videos = mysql_cursor.fetchall()
         sqlite_cursor.executemany(
-            "INSERT INTO videos_video VALUES (:id, :video_id, :show_id, :producer_id)",
+            (
+                "INSERT INTO videos_video VALUES (:id, :video_id, :show_id,"
+                " :producer_id)"
+            ),
             videos,
         )
 
@@ -124,7 +127,7 @@ def create_local_sqlite_db() -> None:
 
 
 def get_video_db_data(
-    video_ids: Optional[list[str]] = None,
+    video_ids: list[str] | None = None,
 ) -> list[RawVideoRecord]:
     """
     Fetches video metadata from the SQLite database.

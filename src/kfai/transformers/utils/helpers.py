@@ -24,7 +24,7 @@ def load_raw_data(file_path: Path) -> CompleteVideoRecord | None:
         with file_path.open("r", encoding="utf-8") as f:
             video_data: CompleteVideoRecord = json.load(f)
             return video_data
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         logger.error(f"Failed to load or parse source file: {file_path}")
         logger.error(format_exc())
         return None
@@ -68,7 +68,9 @@ def check_data_integrity(
 def save_cleaned_data(
     cleaned_path: Path, cleaned_video_data: CompleteVideoRecord
 ) -> bool:
-    """Saves the cleaned data to a JSON file, creating directories if needed."""
+    """Saves the cleaned data to a JSON file, creating directories if
+    needed.
+    """
     try:
         cleaned_dir = cleaned_path.parent
         cleaned_dir.mkdir(parents=True, exist_ok=True)

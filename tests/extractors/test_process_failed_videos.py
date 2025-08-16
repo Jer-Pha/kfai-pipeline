@@ -1,6 +1,3 @@
-import json
-from unittest.mock import MagicMock
-
 import pytest
 
 # The module we are testing
@@ -41,7 +38,8 @@ def mock_dependencies(mocker):
 
 def test_run_happy_path(mocker, mock_dependencies):
     """
-    Tests the main success path: reads failed IDs, enriches them, and writes the output.
+    Tests the main success path: reads failed IDs, enriches them, and
+    writes the output.
     """
     # 1. Arrange
     # Mock the reading of the skip file
@@ -90,12 +88,13 @@ def test_run_happy_path(mocker, mock_dependencies):
 
 def test_run_handles_corrupt_skip_file(mocker, mock_dependencies):
     """
-    Tests that a corrupt skip file is handled gracefully and the script continues.
+    Tests that a corrupt skip file is handled gracefully and the script
+    continues.
     """
     # 1. Arrange
     # Mock the skip file read to raise an error
     mock_skip_open = mocker.mock_open()
-    mock_skip_open.side_effect = IOError("File not found")
+    mock_skip_open.side_effect = OSError("File not found")
     mocker.patch.object(
         mock_dependencies["skip_file_path"], "open", mock_skip_open
     )
@@ -106,7 +105,8 @@ def test_run_handles_corrupt_skip_file(mocker, mock_dependencies):
     # 3. Assert
     # A warning should be printed
     mock_dependencies["print"].assert_any_call(
-        f"-> Warning: Could not read or parse {mock_dependencies['skip_file_path']}. Error: File not found"
+        "-> Warning: Could not read or parse"
+        f" {mock_dependencies['skip_file_path']}. Error: File not found"
     )
     # The script should continue and call the helpers with an empty list
     mock_dependencies["get_db_data"].assert_called_once_with(video_ids=[])
@@ -114,7 +114,8 @@ def test_run_handles_corrupt_skip_file(mocker, mock_dependencies):
 
 def test_run_handles_youtube_api_error(mocker, mock_dependencies):
     """
-    Tests that if the YouTube API fails (returns None), the script does not write an output file.
+    Tests that if the YouTube API fails (returns None), the script
+    does not write an output file.
     """
     # --- FIX: Add mock for the initial file read ---
     # We need to mock this even if it's not the focus of the test,
@@ -137,7 +138,8 @@ def test_run_handles_youtube_api_error(mocker, mock_dependencies):
 
 def test_run_handles_partial_youtube_data(mocker, mock_dependencies):
     """
-    Tests that if some videos are missing from the API response, they are excluded from the final output.
+    Tests that if some videos are missing from the API response, they
+    are excluded from the final output.
     """
     # Arrange
     mocker.patch.object(
@@ -162,8 +164,10 @@ def test_run_handles_partial_youtube_data(mocker, mock_dependencies):
 
     # Assert
     # A warning should be printed for the missing video
+    video_id = "vid2"
     mock_dependencies["print"].assert_any_call(
-        "Warning: Could not find YouTube API data for failed video ID:", "vid2"
+        "Warning: Could not find YouTube API data for failed video"
+        f" ID: {video_id}"
     )
     # The final dumped data should only contain the one successful video
     dumped_data = mock_dependencies["dump"].call_args[0][0]

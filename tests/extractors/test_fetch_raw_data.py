@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -137,7 +137,7 @@ def test_run_skips_video_in_final_loop(mock_dependencies):
 
 
 def test_run_no_new_videos(mock_dependencies):
-    # This test doesn't need to mock file I/O because the skip file doesn't exist
+    # This doesn't need to mock file I/O because the skip file doesn't exist
     mock_dependencies["skip_file_path"].exists.return_value = False
     mock_dependencies["sqlite_path"].exists.return_value = True
     mock_dependencies["get_db_data"].return_value = [{"video_id": "vid1"}]
@@ -155,7 +155,7 @@ def test_run_no_new_videos(mock_dependencies):
 
 
 def test_run_creates_sqlite_db_if_not_exists(mock_dependencies):
-    # This test doesn't need to mock file I/O because the skip file doesn't exist
+    # This doesn't need to mock file I/O because the skip file doesn't exist
     mock_dependencies["skip_file_path"].exists.return_value = False
     mock_dependencies["sqlite_path"].exists.return_value = False
     mock_dependencies["get_db_data"].return_value = []
@@ -166,7 +166,7 @@ def test_run_creates_sqlite_db_if_not_exists(mock_dependencies):
 
 
 @pytest.mark.parametrize(
-    "error", [json.JSONDecodeError("msg", "doc", 0), IOError("msg")]
+    "error", [json.JSONDecodeError("msg", "doc", 0), OSError("msg")]
 )
 def test_run_handles_corrupt_skip_file(mocker, mock_dependencies, error):
     mock_dependencies["skip_file_path"].exists.return_value = True
@@ -182,13 +182,14 @@ def test_run_handles_corrupt_skip_file(mocker, mock_dependencies, error):
     fetch_raw_data.run()
 
     mock_dependencies["print"].assert_any_call(
-        f"-> Warning: Could not read or parse {mock_dependencies['skip_file_path']}."
+        "-> Warning: Could not read or parse"
+        f" {mock_dependencies['skip_file_path']}."
         f" Starting with an empty set. Error: {error}"
     )
 
 
 def test_run_handles_missing_youtube_data(mock_dependencies):
-    # This test doesn't need to mock file I/O because the skip file doesn't exist
+    # This doesn't need to mock file I/O because the skip file doesn't exist
     mock_dependencies["skip_file_path"].exists.return_value = False
     mock_dependencies["sqlite_path"].exists.return_value = True
     mock_dependencies["get_db_data"].side_effect = [
@@ -217,7 +218,7 @@ def test_run_handles_failed_skip_file_write(mocker, mock_dependencies):
 
     # Mock the .open() method to raise an error on write
     mock_file_open = mocker.mock_open()
-    mock_file_open.return_value.write.side_effect = IOError("Disk full")
+    mock_file_open.return_value.write.side_effect = OSError("Disk full")
     mocker.patch.object(
         mock_dependencies["skip_file_path"], "open", mock_file_open
     )
@@ -225,5 +226,6 @@ def test_run_handles_failed_skip_file_write(mocker, mock_dependencies):
     fetch_raw_data.run()
 
     mock_dependencies["print"].assert_any_call(
-        f"FATAL: Could not write to log file {mock_dependencies['skip_file_path']}. Error: Disk full"
+        "FATAL: Could not write to log file"
+        f" {mock_dependencies['skip_file_path']}. Error: Disk full"
     )

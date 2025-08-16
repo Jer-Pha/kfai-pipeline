@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 
 # The module we are testing
@@ -22,7 +20,7 @@ def mock_deps(mocker):
     mock_query_agent_instance = mock_query_agent_class.return_value
     mock_chat_interface_instance = mock_chat_interface_class.return_value
 
-    # --- CRITICAL: Mock the .launch() method to prevent the server from starting ---
+    # CRITICAL: Mock the .launch() method to prevent the server from starting
     mocker.patch.object(mock_chat_interface_instance, "launch")
 
     return {
@@ -58,7 +56,7 @@ def test_run_initializes_and_launches_correctly(mock_deps):
     assert chat_interface_kwargs["title"] == "KF/AI"
     assert "fn" in chat_interface_kwargs  # Check that the function was passed
 
-    # Verify that the launch method was called, preventing the server from starting
+    # Verify the launch method was called, preventing the server from starting
     mock_deps["chat_interface_instance"].launch.assert_called_once_with(
         share=False
     )
@@ -77,9 +75,9 @@ def test_chat_with_agent_bridge_function(mock_deps):
     chat_function = mock_deps["ChatInterface"].call_args.kwargs["fn"]
 
     # Configure the mock agent to return a specific response
-    mock_deps["query_agent_instance"].process_query.return_value = (
-        "Test response from agent"
-    )
+    mock_deps[
+        "query_agent_instance"
+    ].process_query.return_value = "Test response from agent"
 
     # 2. Act
     # Call the extracted function as Gradio would

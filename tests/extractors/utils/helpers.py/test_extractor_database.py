@@ -1,5 +1,5 @@
 import sqlite3
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -172,7 +172,10 @@ def test_export_mysql_to_sqlite_happy_path(mock_db_connections):
     assert sqlite_cursor.executemany.call_count == 4
     # Verify the correct data was passed to an insert
     sqlite_cursor.executemany.assert_any_call(
-        "INSERT INTO videos_video VALUES (:id, :video_id, :show_id, :producer_id)",
+        (
+            "INSERT INTO videos_video VALUES (:id, :video_id, :show_id,"
+            " :producer_id)"
+        ),
         [{"id": 1}],
     )
     # Verify commit and close were called
@@ -197,7 +200,7 @@ def test_export_mysql_error(mocker):
     db_utils._export_mysql_to_sqlite({})
 
     # 3. Assert
-    # SQLite should never have been touched because the MySQL error happened first
+    # SQLite should never have been touched because the MySQL error happened
     mock_sqlite_connect.assert_not_called()
     # Verify that the correct error message was printed
     mock_print.assert_any_call("Error connecting to MySQL: Unknown error")

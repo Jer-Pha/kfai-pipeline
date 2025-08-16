@@ -1,8 +1,5 @@
 import json
-from unittest.mock import MagicMock, call
-
-import pytest
-from langchain.schema.document import Document
+from unittest.mock import MagicMock
 
 # The module we are testing
 from kfai.loaders import build_vector_store
@@ -85,7 +82,8 @@ def test_run_happy_path(mocker):
     mock_get_processed.assert_called_once()
     mock_json_dir.rglob.assert_called_with("*.json")
 
-    # Assert that add_documents was called twice: once for the full batch, once for the final
+    # Assert that add_documents was called twice:
+    # Once for the full batch, once for the final
     assert mock_pgvector_instance.add_documents.call_count == 2
 
     # Check the contents of the first (full) batch call
@@ -108,8 +106,8 @@ def test_run_happy_path(mocker):
 
 
 def test_run_db_insertion_fails(mocker):
-    """
-    Tests that the script handles an exception during DB insertion and continues.
+    """Tests that the script handles an exception during DB insertion
+    and continues.
     """
     # 1. Arrange
     mocker.patch("kfai.loaders.build_vector_store.HuggingFaceEmbeddings")
@@ -223,6 +221,6 @@ def test_run_skips_file_with_no_video_id(mocker):
     # because the file was skipped before any chunks were processed.
     mock_pgvector_instance.add_documents.assert_not_called()
 
-    # Check the final summary to confirm nothing was added or skipped (from the chunk perspective)
+    # Check the final summary to confirm nothing was added or skipped
     mock_print.assert_any_call("  - Added 0 new documents to the collection.")
     mock_print.assert_any_call("  - Skipped 0 documents that already existed.")

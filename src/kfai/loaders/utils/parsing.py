@@ -148,8 +148,8 @@ def parse_topics(
         topics = get_topics_data["topics"]
         return [t for t in topics if t not in metadata]
 
-    except:
-        print(f" !! Error while parsing topics:")
+    except Exception:
+        print(" !! Error while parsing topics:")
         print(format_exc(), end="\n\n")
 
     return []

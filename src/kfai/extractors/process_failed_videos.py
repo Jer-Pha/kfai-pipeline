@@ -15,7 +15,7 @@ def run() -> None:
     try:
         with VIDEOS_TO_SKIP_FILE.open("r", encoding="utf-8") as f:
             failed_ids = list(json.load(f))
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         print(
             f"-> Warning: Could not read or parse {VIDEOS_TO_SKIP_FILE}."
             f" Error: {e}"
@@ -41,8 +41,8 @@ def run() -> None:
                 enriched_metadata.append(video_record)
             else:
                 print(
-                    "Warning: Could not find YouTube API data for failed video ID:",
-                    video_id,
+                    "Warning: Could not find YouTube API data for failed"
+                    f" video ID: {video_id}",
                 )
 
         # 4. Save the complete, enriched metadata

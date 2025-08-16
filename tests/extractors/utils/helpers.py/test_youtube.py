@@ -1,8 +1,7 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 from googleapiclient.errors import HttpError
-from isodate.duration import Duration
 
 # The module we are testing
 from kfai.extractors.utils.helpers import youtube as youtube_utils
@@ -96,7 +95,7 @@ def test_get_youtube_data_multiple_batches(mock_yt_api):
     # Act
     youtube_utils.get_youtube_data(video_ids)
 
-    # Assert: The API should have been called twice (1 batch of 50, 1 batch of 1)
+    # Assert: API should have been called twice (1 batch of 50, 1 batch of 1)
     assert mock_yt_api.call_count == 2
 
 
@@ -129,7 +128,8 @@ def mock_downloader(mocker):
     mock_ydl_instance = mock_ydl_class.return_value.__enter__.return_value
 
     # --- CORRECTED PATH MOCKING ---
-    # Mock the TEMP_DATA_DIR constant directly. This is the object the '/' is called on.
+    # Mock the TEMP_DATA_DIR constant directly.
+    # This is the object the '/' is called on.
     mock_temp_dir = mocker.patch(
         "kfai.extractors.utils.helpers.youtube.TEMP_DATA_DIR"
     )
@@ -154,9 +154,9 @@ def mock_downloader(mocker):
 
 def test_download_audio_handler_single_chunk(mock_downloader):
     """Tests downloading a short video that fits in one chunk."""
-    mock_downloader["path_instance"].exists.return_value = (
-        False  # File doesn't exist
-    )
+    mock_downloader[
+        "path_instance"
+    ].exists.return_value = False  # File doesn't exist
 
     paths = youtube_utils.download_audio_handler("vid1", duration=90)
 
@@ -178,9 +178,9 @@ def test_download_audio_handler_multiple_chunks(mock_downloader):
 
 def test_download_audio_handler_skips_existing_chunks(mock_downloader):
     """Tests that existing chunks are not re-downloaded."""
-    mock_downloader["path_instance"].exists.return_value = (
-        True  # File *does* exist
-    )
+    mock_downloader[
+        "path_instance"
+    ].exists.return_value = True  # File *does* exist
 
     paths = youtube_utils.download_audio_handler("vid1", duration=150)
 

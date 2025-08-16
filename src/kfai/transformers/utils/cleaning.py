@@ -76,7 +76,7 @@ def clean_transcript(
                 }
                 cleaned_video_data["transcript_chunks"].append(cleaned_chunk)
                 progress_bar.update(1)
-            except:
+            except Exception:
                 logger.error(
                     f"LLM call failed on chunk in {relative_path} starting "
                     f"at {chunk['start']}s."
@@ -92,7 +92,7 @@ def clean_transcript(
         progress_bar.close()
 
         return cleaned_video_data
-    except:
+    except Exception:
         logger.error(
             "An unexpected error occurred in clean_transcript()"
             f" for {relative_path}."

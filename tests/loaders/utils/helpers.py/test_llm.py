@@ -10,7 +10,8 @@ from kfai.loaders.utils.helpers import llm as llm_utils
     [
         # Case 1: Test removal of <think> tag
         (
-            "<think>I am thinking about the answer.</think>Here is the final response.",
+            "<think>I am thinking about the answer.</think>Here is the final"
+            " response.",
             "Here is the final response.",
         ),
         # Case 2: Test replacement of curly single quotes
@@ -39,8 +40,8 @@ from kfai.loaders.utils.helpers import llm as llm_utils
     ],
 )
 def test_clean_llm_response(input_string, expected_output):
-    """
-    Tests the clean_llm_response function with various inputs to ensure
-    it correctly removes thought tags, normalizes quotes, and strips whitespace.
+    """Tests the clean_llm_response function with various inputs to
+    ensure it correctly removes thought tags, normalizes quotes, and
+    strips whitespace.
     """
     assert llm_utils.clean_llm_response(input_string) == expected_output

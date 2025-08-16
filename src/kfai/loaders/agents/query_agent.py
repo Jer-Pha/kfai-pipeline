@@ -1,7 +1,8 @@
 import json
 import time
+from collections.abc import Iterable
 from copy import deepcopy
-from typing import Iterable, cast
+from typing import cast
 
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
@@ -33,7 +34,8 @@ from kfai.loaders.utils.types import (
 
 
 class QueryAgent:
-    """Manages the process of querying a document collection to answer questions.
+    """Manages the process of querying a document collection to answer
+    questions.
 
     This agent orchestrates the end-to-end process of handling a user's query.
     It connects to a PGVector database to retrieve relevant document chunks,
@@ -44,7 +46,8 @@ class QueryAgent:
     `process_query` method.
 
     Attributes:
-        llm (OllamaLLM): The language model instance used for generating answers.
+        llm (OllamaLLM): The language model instance used for generating
+            answers.
         embeddings (HuggingFaceEmbeddings): The model used to create vector
             embeddings for documents and queries.
         vector_store (PGVector): The connection to the vector database where
@@ -65,7 +68,7 @@ class QueryAgent:
 
         # 1. Initialize embeddings and vector store connection
         print(
-            " -> Connecting to vector store and initializing embedding model..."
+            " -> Connecting to vector store and initializing embedding model.."
         )
         self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
         self.vector_store = PGVector(
@@ -179,7 +182,9 @@ class QueryAgent:
         return source_list
 
     def _print_sources(self, result: str, docs: list[Document]) -> None:
-        """Prints the sources for the given result using a structured format."""
+        """Prints the sources for the given result using a structured
+        format.
+        """
         print("\nSources:")
         structured_sources = self._get_structured_sources(result, docs)
 
@@ -194,7 +199,7 @@ class QueryAgent:
             print(f"  Link:  {video_data['video_href']}")
             print(f"  Image: {video_data['thumbnail_src']}")
             print(
-                f"  Referenced at:",
+                "  Referenced at:",
                 ", ".join(
                     ref["formatted_time"] for ref in video_data["references"]
                 ),
@@ -270,8 +275,7 @@ class QueryAgent:
                     EmbeddingCMetadata, doc.metadata
                 )
                 doc_id = (
-                    f"{doc_metadata['video_id']}"
-                    f"-{doc_metadata['start_time']}"
+                    f"{doc_metadata['video_id']}-{doc_metadata['start_time']}"
                 )
                 if doc_id not in seen_docs:
                     docs.append(doc)
@@ -285,10 +289,7 @@ class QueryAgent:
         if doc_count == 0:
             return [], ""
 
-        print(
-            f"\nRetrieved {doc_count} docs - [upper limit:"
-            f" {CONTEXT_COUNT}]"
-        )
+        print(f"\nRetrieved {doc_count} docs - [upper limit: {CONTEXT_COUNT}]")
         return docs, topics
 
     def _format_documents_for_context(
@@ -355,7 +356,8 @@ class QueryAgent:
             query (str): The user's question to be answered.
 
         Returns:
-            None: This method prints results to stdout and does not return a value.
+            None: This method prints results to stdout and does not
+                  return a value.
         """
 
         start = time.time()
@@ -363,7 +365,10 @@ class QueryAgent:
         docs, topics = self._retrieve_documents(query)
 
         if not docs and is_gui:
-            return "I could not find any relevant documents to answer your question. Please try rephrasing."
+            return (
+                "I could not find any relevant documents to answer your"
+                " question. Please try rephrasing."
+            )
         elif not docs:
             print(
                 "  !!  WARNING: No documents found, skipping this question..."
@@ -390,7 +395,9 @@ class QueryAgent:
     def _format_response_for_gui(
         self, result: str, docs: list[Document]
     ) -> str:
-        """Formats the final result and sources into a single Markdown string."""
+        """Formats the final result and sources into a single Markdown
+        string.
+        """
         structured_sources = self._get_structured_sources(result, docs)
 
         response_parts = [result]
@@ -417,7 +424,8 @@ class QueryAgent:
                 response_parts.append(f"*   **Referenced at:** {time_links}")
         else:
             response_parts.append(
-                "\n\n---\n**Sources:**\n- No direct sources cited in the response."
+                "\n\n---\n**Sources:**\n- No direct sources cited in the"
+                " response."
             )
 
         return "\n".join(response_parts)

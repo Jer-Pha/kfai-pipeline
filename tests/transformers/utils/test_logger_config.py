@@ -9,7 +9,7 @@ def test_setup_logging_adds_handlers_only_once(mocker):
     Tests that setup_logging correctly adds handlers to a clean root logger
     and does NOT add them again if they already exist.
     """
-    # 1. Arrange: Mock external dependencies and control the global logger state
+    # 1. Arrange: Mock external dependencies and control global logger state
     # Mock the FileHandler to prevent actual file I/O
     mock_file_handler_class = mocker.patch("logging.FileHandler")
     # Mock the StreamHandler for consistency
@@ -43,7 +43,7 @@ def test_setup_logging_adds_handlers_only_once(mocker):
         )
         mock_stream_handler_class.assert_called_once_with()
 
-        # 4. Act (Second Call): Run the function again on the now-configured logger
+        # 4. Act (Second Call): Run function again on the now-configured logger
         logger2 = logger_config.setup_logging()
 
         # 5. Assert (Second Call)

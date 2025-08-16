@@ -1,5 +1,5 @@
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from whisper import Whisper
@@ -77,7 +77,8 @@ def get_raw_transcript_data(
 
             except Exception as e:
                 print(
-                    f"  !! An error occurred during translation attempt for {video_id}: {e}"
+                    "  !! An error occurred during translation attempt for"
+                    f" {video_id}: {e}"
                 )
         else:
             print(f"Could not retrieve transcript for {video_id}")
@@ -137,7 +138,7 @@ def chunk_transcript_with_overlap(
         )
 
         if chunk_start_char_index == -1:
-            # This should rarely happen, but as a fallback, search from the beginning
+            # This should rarely happen, search from the beginning (fallback)
             chunk_start_char_index = full_text.find(chunk_text)
 
         # Find the closest timestamp in our map

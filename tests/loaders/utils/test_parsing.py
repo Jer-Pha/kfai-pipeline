@@ -41,12 +41,12 @@ def test_parse_shows_happy_path(mock_llm):
 
     # 3. Assert: Verify the outcome
     assert result == ["The Daily Show", "Last Week Tonight"]
-    mock_llm.invoke.assert_called_once()  # Verifies the LLM was called exactly once
+    mock_llm.invoke.assert_called_once()  # Verifies the LLM was called once
 
 
 def test_parse_shows_handles_bad_json(mock_llm):
-    """
-    Tests that parse_shows returns an empty list if the LLM returns invalid JSON.
+    """Tests that parse_shows returns an empty list if the LLM
+    returns invalid JSON.
     """
     # 1. Arrange: Configure the mock to return a malformed string
     query = "any query"
@@ -114,8 +114,9 @@ def test_parse_hosts_handles_bad_json(mock_llm):
 # --- Tests for parse_year_range ---
 
 
-# pytest.mark.parametrize allows us to run the same test function with different inputs.
-# This is highly efficient for testing multiple conditions in the same function.
+# pytest.mark.parametrize allows us to run the same test function with
+# different inputs. This is highly efficient for testing multiple
+# conditions in the same function.
 @pytest.mark.parametrize(
     "llm_response, expected_filters, expected_years",
     [
