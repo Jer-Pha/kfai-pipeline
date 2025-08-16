@@ -1,0 +1,66 @@
+name: Python Application CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+
+    steps:
+      # 1. Checks out the repository under $GITHUB_WORKSPACE
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # 2. Sets up the specified version of Python
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 3. Install Poetry
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true # Creates .venv in the project dir for easier caching
+
+      # 4. Set up a cache for dependencies
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      # 5. Install PyTorch (CPU version)
+      - name: Install PyTorch (CPU version)
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+      # 6. Install all other dependencies using Poetry
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      # 7. Run Ruff linter
+      - name: Lint with Ruff
+        run: poetry run ruff check .
+
+      # 8. Run MyPy static type checker
+      - name: Check types with MyPy
+        run: poetry run mypy --strict
+
+      # 9. Run Deptry to check for dependency issues
+      - name: Check dependencies with Deptry
+        run: poetry run deptry .
+
+      # 10. Run Pytest with coverage
+      - name: Test with Pytest
+        run: poetry run pytest --cov=kfai
