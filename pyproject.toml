@@ -52,6 +52,8 @@ pytest-mock = "^3.14.1"
 mypy = "^1.17.1"
 ruff = "^0.12.9"
 deptry = "^0.23.1"
+types-tqdm = "^4.67.0.20250809"
+google-api-python-client-stubs = "^1.30.0"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

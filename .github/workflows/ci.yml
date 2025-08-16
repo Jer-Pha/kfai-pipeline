@@ -63,4 +63,4 @@ jobs:
 
       # 10. Run Pytest with coverage
       - name: Test with Pytest
-        run: poetry run pytest --cov=kfai
+        run: poetry run pytest --cov=kfai --cov-fail-under=100
