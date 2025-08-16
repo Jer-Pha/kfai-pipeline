@@ -1,5 +1,6 @@
 import logging
 from logging import Logger
+from pathlib import Path
 
 from kfai.transformers.utils.config import LOG_FILE
 
@@ -7,7 +8,7 @@ LOG_LEVEL = logging.WARNING
 
 
 def setup_logging() -> Logger:
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 
     log_formatter = logging.Formatter(
         "%(asctime)s - %(levelname)s - %(message)s"
