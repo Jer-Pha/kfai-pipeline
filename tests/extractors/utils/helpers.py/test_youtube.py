@@ -27,6 +27,9 @@ def test_yt_datetime_to_epoch(input_str, expected_epoch):
         ("PT1H2M3S", 3723),  # 1 hour, 2 minutes, 3 seconds
         ("PT15M50S", 950),  # 15 minutes, 50 seconds
         ("PT5S", 5),
+        (None, 0),
+        ("P1M", 0),  # 1 month
+        ("P1Y2M", 0),  # 1 year, 2 months
     ],
 )
 def test_duration_to_seconds(input_duration, expected_seconds):

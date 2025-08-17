@@ -1,11 +1,10 @@
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import googleapiclient.discovery as ytapi
 from googleapiclient.errors import HttpError
 from isodate import parse_duration
-from isodate.duration import Duration
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import download_range_func
 
@@ -25,9 +24,15 @@ def yt_datetime_to_epoch(data: str) -> int:
     return int(datetime.fromisoformat(data.replace("Z", "+00:00")).timestamp())
 
 
-def duration_to_seconds(duration: Duration) -> int:
+def duration_to_seconds(duration: str | None) -> int:
     """Converts YouTube API ISO duration to total seconds."""
-    return int(parse_duration(duration).total_seconds())
+    if not duration:
+        return 0
+
+    parsed_obj = parse_duration(duration)
+    if isinstance(parsed_obj, timedelta):
+        return int(parsed_obj.total_seconds())
+    return 0
 
 
 def get_youtube_data(video_ids: list[str]) -> dict[str, VideoMetadata] | None:
