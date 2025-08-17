@@ -46,7 +46,7 @@ jobs:
 
       # 6. Run Pytest with coverage
       - name: Test with Pytest
-        run: poetry run pytest --cov=kfai --cov-fail-under=100
+        run: poetry run pytest --cov=kfai --cov-fail-under=100 --cov-report=term-missing
 
       # 7. Run MyPy static type checker
       - name: Check types with MyPy
