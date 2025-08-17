@@ -160,3 +160,4 @@ dev/
 data/
 logs/
 coverage_html/
+.idea/
