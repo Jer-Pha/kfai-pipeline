@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "kfai"
-version = "0.9.0"
+version = "0.9.1"
 description = "An ETL pipeline for a RAG-based Q&A agent that specializes in Kinda Funny content."
 authors = [
     {name = "Jeremy Phares", email = "jeremy.phares.dev@gmail.com"}
