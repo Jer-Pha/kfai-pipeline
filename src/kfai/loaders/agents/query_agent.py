@@ -409,11 +409,14 @@ class QueryAgent:
         if structured_sources:
             response_parts.append("\n\n---\n**Sources:**")
             for video_data in structured_sources:
-                # Video Title and Link
-                video_link = (
-                    f"[{video_data['title']}]({video_data['video_href']})"
+                # Create a clickable Markdown image link
+                thumbnail_markdown = (
+                    f"[![{video_data['title']}]({video_data['thumbnail_src']})]"
+                    f"({video_data['video_href']})"
                 )
-                response_parts.append(f"\n\n**Video: {video_link}**")
+                # Video Title and Link
+                response_parts.append(f"\n\n**{video_data['title']}**")
+                response_parts.append(thumbnail_markdown)
 
                 # Show Name
                 response_parts.append(
