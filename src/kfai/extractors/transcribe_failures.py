@@ -61,7 +61,7 @@ def run() -> None:
             if output_path.exists():
                 continue
 
-            print(f"\n--- Processing {i+1}/{size}: {video_id} ---")
+            print(f"\n--- Processing {i + 1}/{size}: {video_id} ---")
 
             raw_transcript_data = []
             audio_files_to_cleanup: list[Path] = []
@@ -79,7 +79,9 @@ def run() -> None:
 
             # 3. Transcribe chunks
             for idx, chunk_path in enumerate(chunk_paths):
-                print(f"  -> Transcribing chunk {idx+1}/{len(chunk_paths)}...")
+                print(
+                    f"  -> Transcribing chunk {idx + 1}/{len(chunk_paths)}..."
+                )
                 segments = transcribe_with_whisper(chunk_path, whisper_model)
                 if segments:
                     time_offset = idx * CHUNK_THRESHOLD_SECONDS
