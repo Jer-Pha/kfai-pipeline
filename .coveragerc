@@ -1,7 +1,6 @@
 [run]
 source = src/kfai
 omit =
-    tests/*
     */__init__.py
     src/kfai/cli.py
 
@@ -10,8 +9,9 @@ exclude_lines =
     pragma: no cover
     pass
     if __name__ == .__main__.:
+    if TYPE_CHECKING:
 
 
 [html]
 directory = coverage_html
-title = KFAI Coverage Report
+title = KF/AI Coverage Report
