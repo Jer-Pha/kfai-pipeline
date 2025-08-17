@@ -39,28 +39,23 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
-      # 5. Install PyTorch (CPU version)
-      - name: Install PyTorch (CPU version)
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry run pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-      # 6. Install all other dependencies using Poetry
+      # 5. Install all other dependencies using Poetry
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
 
-      # 7. Run Ruff linter
-      - name: Lint with Ruff
-        run: poetry run ruff check .
+      # 6. Run Pytest with coverage
+      - name: Test with Pytest
+        run: poetry run pytest --cov=kfai --cov-fail-under=100
 
-      # 8. Run MyPy static type checker
+      # 7. Run MyPy static type checker
       - name: Check types with MyPy
         run: poetry run mypy --strict
 
-      # 9. Run Deptry to check for dependency issues
+      # 8. Run Deptry to check for dependency issues
       - name: Check dependencies with Deptry
         run: poetry run deptry .
 
-      # 10. Run Pytest with coverage
-      - name: Test with Pytest
-        run: poetry run pytest --cov=kfai --cov-fail-under=100
+      # 9. Run Ruff linter
+      - name: Lint with Ruff
+        run: poetry run ruff check .
