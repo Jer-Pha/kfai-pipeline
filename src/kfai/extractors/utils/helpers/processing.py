@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 from datetime import date
 from json import dump
+from typing import TYPE_CHECKING
 
 from kfai.core.paths import RAW_JSON_DIR
-from kfai.core.types import CompleteVideoRecord
 from kfai.extractors.utils.helpers.transcript import (
     chunk_transcript_with_overlap,
     get_raw_transcript_data,
 )
+
+if TYPE_CHECKING:
+    from kfai.core.types import CompleteVideoRecord
 
 
 def process_video(video_record: CompleteVideoRecord) -> bool:

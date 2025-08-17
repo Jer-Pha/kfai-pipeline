@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import logging
-from logging import Logger
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from kfai.transformers.utils.config import LOG_FILE
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 LOG_LEVEL = logging.WARNING
 

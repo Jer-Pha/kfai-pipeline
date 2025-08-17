@@ -1,15 +1,19 @@
-from collections.abc import Iterable
-from pathlib import Path
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from whisper import Whisper
-from youtube_transcript_api import (
-    FetchedTranscriptSnippet,
-    YouTubeTranscriptApi,
-)
+from youtube_transcript_api import YouTubeTranscriptApi
 
-from kfai.core.types import TranscriptChunk
-from kfai.extractors.utils.types import TranscriptSnippet
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from pathlib import Path
+
+    from whisper import Whisper
+    from youtube_transcript_api import FetchedTranscriptSnippet
+
+    from kfai.core.types import TranscriptChunk
+    from kfai.extractors.utils.types import TranscriptSnippet
 
 
 def _normalize_transcript(

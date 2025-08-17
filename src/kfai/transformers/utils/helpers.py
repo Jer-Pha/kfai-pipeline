@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import json
 import logging
 import re
-from pathlib import Path
 from traceback import format_exc
+from typing import TYPE_CHECKING
 
-from kfai.core.types import CompleteVideoRecord, TranscriptChunk
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from kfai.core.types import CompleteVideoRecord, TranscriptChunk
 
 logger = logging.getLogger()
 

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import sqlite3
+from typing import TYPE_CHECKING
 
 import mysql.connector
 
@@ -9,7 +12,9 @@ from kfai.extractors.utils.config import (
     MYSQL_USER,
     SQLITE_DB_PATH,
 )
-from kfai.extractors.utils.types import MySQLConfig, RawVideoRecord
+
+if TYPE_CHECKING:
+    from kfai.extractors.utils.types import MySQLConfig, RawVideoRecord
 
 
 def _export_mysql_to_sqlite(mysql_config: MySQLConfig) -> None:

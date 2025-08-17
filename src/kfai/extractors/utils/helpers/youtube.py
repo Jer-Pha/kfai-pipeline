@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import math
 from datetime import datetime, timedelta
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import googleapiclient.discovery as ytapi
 from googleapiclient.errors import HttpError
@@ -14,7 +16,11 @@ from kfai.extractors.utils.config import (
     TEMP_DATA_DIR,
     YOUTUBE_API_KEY,
 )
-from kfai.extractors.utils.types import VideoMetadata
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from kfai.extractors.utils.types import VideoMetadata
 
 
 def yt_datetime_to_epoch(data: str) -> int:

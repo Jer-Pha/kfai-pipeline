@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING
 
 from langchain_ollama import OllamaLLM
 
@@ -9,12 +12,14 @@ from kfai.loaders.utils.parsing import (
     parse_topics,
     parse_year_range,
 )
-from kfai.loaders.utils.types import (
-    PGVectorHosts,
-    PGVectorPublishedAt,
-    PGVectorShowName,
-    PGVectorText,
-)
+
+if TYPE_CHECKING:
+    from kfai.loaders.utils.types import (
+        PGVectorHosts,
+        PGVectorPublishedAt,
+        PGVectorShowName,
+        PGVectorText,
+    )
 
 
 def _build_filter(

@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 import json
 import time
 from collections.abc import Iterable
 from copy import deepcopy
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_ollama import OllamaLLM
 from langchain_postgres import PGVector
 from sqlalchemy import create_engine
 
@@ -28,9 +29,12 @@ from kfai.loaders.utils.types import (
     EmbeddingCMetadata,
     GroupedSourceData,
     PGVectorText,
-    TimestampReference,
-    VideoDataSource,
 )
+
+if TYPE_CHECKING:
+    from langchain_ollama import OllamaLLM
+
+    from kfai.loaders.utils.types import TimestampReference, VideoDataSource
 
 
 class QueryAgent:

@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import json
 from datetime import date
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import whisper
 
 from kfai.core.paths import RAW_JSON_DIR
-from kfai.core.types import CompleteVideoRecord
 from kfai.extractors.utils.config import (
     CHUNK_THRESHOLD_SECONDS,
     FAILED_VIDEOS_FILE,
@@ -18,6 +19,11 @@ from kfai.extractors.utils.helpers.transcript import (
     transcribe_with_whisper,
 )
 from kfai.extractors.utils.helpers.youtube import download_audio_handler
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from kfai.core.types import CompleteVideoRecord
 
 
 def run() -> None:

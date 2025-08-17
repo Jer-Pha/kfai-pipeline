@@ -1,15 +1,22 @@
-import json
-from pathlib import Path
-from traceback import format_exc
+from __future__ import annotations
 
-from langchain_ollama import OllamaLLM
+import json
+from traceback import format_exc
+from typing import TYPE_CHECKING
+
 from tqdm import tqdm
 
 from kfai.core.paths import LOGS_DIR
-from kfai.core.types import CompleteVideoRecord, TranscriptChunk
 from kfai.transformers.utils.helpers import clean_response, clean_text_chunk
 from kfai.transformers.utils.logger_config import setup_logging
 from kfai.transformers.utils.prompts import SYSTEM_PROMPT, USER_PROMPT
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from langchain_ollama import OllamaLLM
+
+    from kfai.core.types import CompleteVideoRecord, TranscriptChunk
 
 logger = setup_logging()
 

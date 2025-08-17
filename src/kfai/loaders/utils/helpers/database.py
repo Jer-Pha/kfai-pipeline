@@ -1,6 +1,13 @@
-from sqlalchemy import Engine, create_engine, text
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from sqlalchemy import create_engine, text
 
 from kfai.loaders.utils.config import COLLECTION_NAME, POSTGRES_DB_PATH
+
+if TYPE_CHECKING:
+    from sqlalchemy import Engine
 
 
 def get_processed_chunk_ids() -> set[tuple[str, float]]:

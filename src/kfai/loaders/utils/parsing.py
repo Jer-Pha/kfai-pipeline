@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from traceback import format_exc
-
-from langchain_ollama import OllamaLLM
+from typing import TYPE_CHECKING
 
 from kfai.loaders.utils.constants import PRIMARY_HOST_MAP
 from kfai.loaders.utils.helpers.datetime import iso_string_to_epoch
@@ -13,7 +14,11 @@ from kfai.loaders.utils.prompts import (
     GET_TOPICS_PROMPT,
     GET_YEARS_PROMPT,
 )
-from kfai.loaders.utils.types import PGVectorPublishedAt
+
+if TYPE_CHECKING:
+    from langchain_ollama import OllamaLLM
+
+    from kfai.loaders.utils.types import PGVectorPublishedAt
 
 PRIMARY_HOSTS = ", ".join(
     [f"'{k}' likely refers to '{v}'" for k, v in PRIMARY_HOST_MAP.items()]
