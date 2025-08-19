@@ -40,7 +40,7 @@ def run() -> None:
         return response
 
     # Configure the Gradio interface
-    demo = gr.ChatInterface(
+    web_app = gr.ChatInterface(
         fn=chat_with_agent,
         title="KF/AI",
         description="Ask a question about Kinda Funny content.",
@@ -54,10 +54,14 @@ def run() -> None:
                 "What did Blessing and Tim say about Rocket League on Kinda"
                 " Funny Games Daily?"
             ),
+            (
+                "In 2025, what comparisons did Blessing make between Rocket"
+                " League and Rematch?"
+            ),
         ],
         cache_examples=False,
     )
 
     # Launch the web server.
     # share=False ensures it's only accessible on your local machine.
-    demo.launch(share=False)
+    web_app.launch(share=False)
