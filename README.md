@@ -1,6 +1,6 @@
 # KF/AI
 
-[![Python Application CI](https://github.com/Jer-Pha/kf-ai/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/Jer-Pha/kf-ai/actions/workflows/ci.yml)
+[![Python Application CI](https://github.com/Jer-Pha/kfai-pipeline/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/Jer-Pha/kfai-pipeline/actions/workflows/ci.yml)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
@@ -80,8 +80,8 @@ This project is maintained with a strict suite of automated quality checks. All 
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/Jer-Pha/kf-ai.git
-    cd kf-ai
+    git clone https://github.com/Jer-Pha/kfai-pipeline.git
+    cd kfai-pipeline
     ```
 
 2.  **Install Poetry:**
