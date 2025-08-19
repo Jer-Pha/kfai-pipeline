@@ -161,3 +161,4 @@ data/
 logs/
 coverage_html/
 .idea/
+.gradio/
