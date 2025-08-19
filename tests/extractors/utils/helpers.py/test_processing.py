@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.extractors.utils.helpers import processing as processing_utils
 
 # --- Comprehensive Fixture for Mocking Dependencies ---
@@ -182,7 +181,6 @@ def test_process_video_creates_unknown_date_path(mock_dependencies):
     processing_utils.process_video(video_record_no_date)
 
     # 3. Assert
-    # --- FINAL CORRECTED ASSERTION ---
     # Directly access the mock for RAW_JSON_DIR from the fixture
     raw_json_dir_mock = mock_dependencies["raw_json_dir"]
 

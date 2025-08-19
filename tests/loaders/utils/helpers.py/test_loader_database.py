@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-# The module we are testing
 from kfai.loaders.utils.helpers import database as db_utils
 
 # --- Tests for get_processed_chunk_ids ---

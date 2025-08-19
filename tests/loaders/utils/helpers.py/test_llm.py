@@ -1,6 +1,5 @@
 import pytest
 
-# The module we are testing
 from kfai.loaders.utils.helpers import llm as llm_utils
 
 

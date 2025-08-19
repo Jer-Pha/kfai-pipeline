@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.loaders.utils import parsing as parsing_utils
 from kfai.loaders.utils.types import QueryParseResponse
 

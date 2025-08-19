@@ -1,6 +1,5 @@
 import logging
 
-# The module we are testing
 from kfai.transformers.utils import logger_config
 
 
@@ -22,7 +21,7 @@ def test_setup_logging_adds_handlers_only_once(mocker):
     # --- Critical Setup for Testing Global Logger ---
     # Get the root logger, which is a global singleton
     root_logger = logging.getLogger()
-    # Store its original handlers so we can restore them later
+    # Store its original handlers to be restored later
     original_handlers = root_logger.handlers.copy()
     # Manually remove all handlers to ensure a clean state for the first call
     for handler in original_handlers:
@@ -53,8 +52,8 @@ def test_setup_logging_adds_handlers_only_once(mocker):
         assert logger2 is root_logger
 
     finally:
-        # --- Critical Teardown: Restore the global logger state ---
-        # Remove the handlers our test added
+        # --- Restore the global logger state ---
+        # Remove the handlers the test added
         for handler in root_logger.handlers.copy():
             root_logger.removeHandler(handler)
         # Add the original handlers back for other tests

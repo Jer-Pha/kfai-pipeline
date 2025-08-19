@@ -1,6 +1,5 @@
 import pytest
 
-# The module we are testing
 from kfai.loaders import gradio_app
 
 # --- Comprehensive Fixture for Mocking Dependencies ---

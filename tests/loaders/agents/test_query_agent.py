@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.documents import Document
 
-# The module we are testing
 from kfai.loaders.agents.query_agent import QueryAgent
 from kfai.loaders.utils.types import (
     AgentResponse,
@@ -270,7 +269,6 @@ def test_retrieve_documents_no_filter_dict(mocker, mocked_agent):
     mocked_agent._retrieve_documents("query")
 
     # Assert
-    # --- CORRECTED ASSERTION ---
     # The vector store should have been called once (for the one topic).
     mocked_agent.vector_store.similarity_search_with_relevance_scores.assert_called_once()  # noqa: E501
 

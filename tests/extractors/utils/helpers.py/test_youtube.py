@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 import pytest
 from googleapiclient.errors import HttpError
 
-# The module we are testing
 from kfai.extractors.utils.helpers import youtube as youtube_utils
 
 # --- Tests for simple helper functions ---
@@ -57,7 +56,7 @@ def mock_yt_api(mocker):
     mock_service.videos.return_value = mock_videos_resource
     mock_videos_resource.list.return_value = mock_list_request
 
-    # Return the final object in the chain, whose .execute() we will control
+    # Return the final object in the chain
     return mock_list_request.execute
 
 
@@ -130,14 +129,12 @@ def mock_downloader(mocker):
     )
     mock_ydl_instance = mock_ydl_class.return_value.__enter__.return_value
 
-    # --- CORRECTED PATH MOCKING ---
     # Mock the TEMP_DATA_DIR constant directly.
     # This is the object the '/' is called on.
     mock_temp_dir = mocker.patch(
         "kfai.extractors.utils.helpers.youtube.TEMP_DATA_DIR"
     )
 
-    # The result of the '/' operation is what we need to control.
     # This mock will represent the 'chunk_path' variable inside the loop.
     mock_chunk_path = mock_temp_dir.__truediv__.return_value
 
@@ -150,7 +147,6 @@ def mock_downloader(mocker):
     return {
         "ydl_class": mock_ydl_class,
         "ydl_instance": mock_ydl_instance,
-        # This is now the correct mock object to configure in our tests
         "path_instance": mock_chunk_path,
     }
 
@@ -194,7 +190,6 @@ def test_download_audio_handler_skips_existing_chunks(mock_downloader):
 
 def test_download_audio_handler_download_error(mock_downloader):
     """Tests that an error during download cleans up and returns None."""
-    # --- CORRECTED MOCK BEHAVIOR ---
     # Use side_effect to provide a sequence of return values.
     # 1st call to .exists() returns False (triggers download).
     # 2nd call to .exists() returns True (simulates partial file for cleanup).
