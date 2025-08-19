@@ -245,14 +245,14 @@ class QueryAgent:
         if filter_dict is None:
             filter_dict = {"$and": []}
 
+        unfiltered_docs: list[tuple[Document, float]] = []
+
         if not topics:
-            unfiltered_docs = (
+            unfiltered_docs.extend(
                 self.vector_store.similarity_search_with_relevance_scores(
                     query, k=CONTEXT_COUNT, filter=filter_dict
                 )
             )
-        else:
-            unfiltered_docs: list[tuple[Document, float]] = []
 
         # Get docs for each topic filter
         for topic in topics:
