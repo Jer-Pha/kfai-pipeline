@@ -31,31 +31,22 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true # Creates .venv in the project dir for easier caching
 
-      # 4. Set up a cache for dependencies
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
-      # 5. Install all other dependencies using Poetry
+      # 4. Install all other dependencies using Poetry
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --all-groups --no-interaction --no-root
 
-      # 6. Run Pytest with coverage
+      # 5. Run Pytest with coverage
       - name: Test with Pytest
         run: poetry run pytest --cov=kfai --cov-fail-under=100 --cov-report=term-missing
 
-      # 7. Run MyPy static type checker
+      # 6. Run MyPy static type checker
       - name: Check types with MyPy
         run: poetry run mypy --strict
 
-      # 8. Run Deptry to check for dependency issues
+      # 7. Run Deptry to check for dependency issues
       - name: Check dependencies with Deptry
         run: poetry run deptry .
 
-      # 9. Run Ruff linter
+      # 8. Run Ruff linter
       - name: Lint with Ruff
         run: poetry run ruff check .
