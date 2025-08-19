@@ -1,3 +1,5 @@
+permissions:
+  contents: read
 name: Continuous Integration Checks
 
 on:
