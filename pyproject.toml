@@ -39,6 +39,7 @@ torchvision = {version = "^0.23.0", source = "pytorch"}
 tqdm = "4.67.1"
 youtube-transcript-api = "1.2.2"
 yt-dlp = "2025.8.11"
+pydantic = "^2.11.7"
 
 [[tool.poetry.source]]
 name = "pytorch"

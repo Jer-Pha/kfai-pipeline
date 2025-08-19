@@ -2,181 +2,115 @@ import pytest
 
 # The module we are testing
 from kfai.loaders.utils import filtering as filtering_utils
+from kfai.loaders.utils.helpers.datetime import iso_string_to_epoch
+from kfai.loaders.utils.types import QueryParseResponse
 
-# --- Tests for the helper function: _build_filter ---
+# --- Test Suite for build_filter ---
 
 
-# We use parametrize to efficiently test many combinations of inputs
 @pytest.mark.parametrize(
-    "inputs, expected_output",
+    "response_data, expected_filter_part",
     [
-        # Case 1: All inputs are provided
+        # Case 1: Only shows
+        ({"shows": ["Show A"]}, {"show_name": {"$in": ["Show A"]}}),
+        # Case 2: Only hosts (with character escaping)
+        ({"hosts": ["Host_B"]}, {"hosts": {"$like": "%Host\\_B%"}}),
+        # Case 3: Exact year
         (
+            {"exact_year": "2023"},
             {
-                "shows_list": ["Show A"],
-                "hosts_list": ["Host B"],
-                "year_filter": [{"published_at": {"$gte": 123}}],
-                "topics_list": ["Topic C", "Topic D"],
-            },
-            {
-                "$and": [
-                    {"show_name": {"$in": ["Show A"]}},
-                    {"hosts": {"$like": "%Host B%"}},
-                    {"published_at": {"$gte": 123}},
-                    {
-                        "$or": [
-                            {"text": {"$ilike": "%Topic C%"}},
-                            {"text": {"$ilike": "%Topic D%"}},
-                        ]
-                    },
-                ]
+                "published_at": {
+                    "$gte": iso_string_to_epoch("2023-01-01T00:00:00")
+                }
             },
         ),
-        # Case 2: No inputs provided, should return None
+        # Case 4: Year range
         (
+            {"year_range": "2020-2022"},
             {
-                "shows_list": [],
-                "hosts_list": [],
-                "year_filter": [],
-                "topics_list": [],
-            },
-            None,
-        ),
-        # Case 3: Only shows and topics
-        (
-            {
-                "shows_list": ["Show A", "Show B"],
-                "hosts_list": [],
-                "year_filter": [],
-                "topics_list": ["Topic C"],
-            },
-            {
-                "$and": [
-                    {"show_name": {"$in": ["Show A", "Show B"]}},
-                    {"$or": [{"text": {"$ilike": "%Topic C%"}}]},
-                ]
+                "published_at": {
+                    "$lte": iso_string_to_epoch("2022-12-31T23:59:59")
+                }
             },
         ),
-        # Case 4: Host with special SQL characters that need escaping
+        # Case 5: Before year
         (
+            {"before_year": "2019"},
             {
-                "shows_list": [],
-                "hosts_list": ["Host_With%Chars"],
-                "year_filter": [],
-                "topics_list": [],
+                "published_at": {
+                    "$lte": iso_string_to_epoch("2018-12-31T23:59:59")
+                }
             },
-            {"$and": [{"hosts": {"$like": "%Host\\_With\\%Chars%"}}]},
         ),
-        # Case 5: Topic with leading/trailing whitespace should be ignored
+        # Case 6: After year (mocking datetime.now)
         (
+            {"after_year": "2022"},
             {
-                "shows_list": [],
-                "hosts_list": [],
-                "year_filter": [],
-                "topics_list": ["Valid Topic", "   ", ""],
+                "published_at": {
+                    "$gte": iso_string_to_epoch("2023-01-01T00:00:00")
+                }
             },
-            {"$and": [{"$or": [{"text": {"$ilike": "%Valid Topic%"}}]}]},
         ),
     ],
 )
-def test_build_filter(inputs, expected_output):
-    """
-    Tests the _build_filter function with various combinations of inputs.
-    """
-    # The function is private, but we can test it directly in Python
-    # by calling it with the _ prefix.
-    result = filtering_utils._build_filter(**inputs)
-    assert result == expected_output
+def test_build_filter_individual_conditions(
+    mocker, response_data, expected_filter_part
+):
+    """Tests that each condition correctly adds its part to the filter."""
+    # Arrange
+    # Mock datetime.now for the 'after_year' test to make it deterministic
+    if "after_year" in response_data:
+        mock_datetime = mocker.patch("kfai.loaders.utils.filtering.datetime")
+        mock_datetime.now.return_value.year = 2024
 
+    # Create a Pydantic object from the test data
+    parsed_response = QueryParseResponse(**response_data)
 
-# --- Tests for the main function: get_filter ---
+    # Act
+    result = filtering_utils.build_filter(parsed_response)
 
-
-def test_get_filter_happy_path(mocker):
-    """
-    Tests the get_filter function by mocking its parsing dependencies.
-    This test verifies the orchestration logic.
-    """
-    # 1. Arrange: Mock all dependencies of get_filter
-    # We don't need the LLM to run, so we mock its class
-    mocker.patch("kfai.loaders.utils.filtering.OllamaLLM")
-
-    # Mock the return values of the parsing functions
-    mock_parse_shows = mocker.patch(
-        "kfai.loaders.utils.filtering.parse_shows",
-        return_value=["Kinda Funny Games Daily"],
-    )
-    mock_parse_hosts = mocker.patch(
-        "kfai.loaders.utils.filtering.parse_hosts",
-        return_value=["Greg Miller"],
-    )
-    mock_parse_year = mocker.patch(
-        "kfai.loaders.utils.filtering.parse_year_range",
-        return_value=([{"published_at": {"$gte": 123}}], ["2023"]),
-    )
-    mock_parse_topics = mocker.patch(
-        "kfai.loaders.utils.filtering.parse_topics",
-        return_value=["PlayStation", "Xbox"],
+    # Assert
+    assert result is not None
+    assert "$and" in result
+    # Check that the expected dictionary is a subset of one of the conditions
+    assert any(
+        all(item in condition.items() for item in expected_filter_part.items())
+        for condition in result["$and"]
     )
 
-    query = "Tell me what Greg Miller said about PlayStation and Xbox in 2023"
-    show_names = ["Kinda Funny Games Daily"]
-    hosts = ["Greg Miller"]
 
-    # 2. Act: Call the function
-    topics_str, filter_dict = filtering_utils.get_filter(
-        query, show_names, hosts
+def test_build_filter_all_conditions():
+    """Tests that a response with all possible data builds a complete
+    filter.
+    """
+    # Arrange
+    parsed_response = QueryParseResponse(
+        shows=["Show A"],
+        hosts=["Host B"],
+        exact_year="2023",
+        topics=[
+            "Topic C"
+        ],  # Topics are ignored by this function, which is correct
     )
 
-    # 3. Assert
-    # Assert the final topics string is correct
-    assert topics_str == "PlayStation, Xbox"
+    # Act
+    result = filtering_utils.build_filter(parsed_response)
 
-    # Assert the final filter dictionary is correctly assembled
-    expected_filter = {
-        "$and": [
-            {"show_name": {"$in": ["Kinda Funny Games Daily"]}},
-            {"hosts": {"$like": "%Greg Miller%"}},
-            {"published_at": {"$gte": 123}},
-            {
-                "$or": [
-                    {"text": {"$ilike": "%PlayStation%"}},
-                    {"text": {"$ilike": "%Xbox%"}},
-                ]
-            },
-        ]
-    }
-    assert filter_dict == expected_filter
-
-    # Assert that the parsing functions were called with the correct arguments
-    mock_parse_shows.assert_called_once()
-    mock_parse_hosts.assert_called_once()
-    mock_parse_year.assert_called_once()
-    mock_parse_topics.assert_called_once()
+    # Assert
+    assert result is not None
+    # Should contain 4 conditions: show, host, and year (gte) ad year (lte)
+    assert len(result["$and"]) == 4
 
 
-def test_get_filter_when_no_topics_are_found(mocker):
+def test_build_filter_no_conditions():
+    """Tests that the function returns None if no filterable data is
+    provided.
     """
-    Tests that the returned topics string falls back to the original query
-    if the parsing function returns no topics.
-    """
-    # 1. Arrange
-    mocker.patch("kfai.loaders.utils.filtering.OllamaLLM")
-    mocker.patch("kfai.loaders.utils.filtering.parse_shows", return_value=[])
-    mocker.patch("kfai.loaders.utils.filtering.parse_hosts", return_value=[])
-    mocker.patch(
-        "kfai.loaders.utils.filtering.parse_year_range", return_value=([], [])
-    )
-    # This is the key part of this test: parse_topics returns an empty list
-    mocker.patch("kfai.loaders.utils.filtering.parse_topics", return_value=[])
+    # Arrange
+    parsed_response = QueryParseResponse(topics=["Topic C"])  # Only topics
 
-    query = "A very generic query"
+    # Act
+    result = filtering_utils.build_filter(parsed_response)
 
-    # 2. Act
-    topics_str, filter_dict = filtering_utils.get_filter(query, [], [])
-
-    # 3. Assert
-    # The topics string should be the original query
-    assert topics_str == query
-    # Since no filters were found, the dictionary should be None
-    assert filter_dict is None
+    # Assert
+    assert result is None

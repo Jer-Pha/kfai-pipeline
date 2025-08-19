@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Iterable
 from copy import deepcopy
 from typing import TYPE_CHECKING, cast
 
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
+from langchain_core.output_parsers import PydanticOutputParser
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_postgres import PGVector
 from sqlalchemy import create_engine
@@ -20,15 +19,16 @@ from kfai.loaders.utils.config import (
     POSTGRES_DB_PATH,
     QA_MODEL,
 )
-from kfai.loaders.utils.filtering import get_filter
+from kfai.loaders.utils.filtering import build_filter
 from kfai.loaders.utils.helpers.database import get_unique_metadata
 from kfai.loaders.utils.helpers.datetime import format_duration
-from kfai.loaders.utils.helpers.llm import clean_llm_response
+from kfai.loaders.utils.parsing import parse_query
 from kfai.loaders.utils.prompts import QA_PROMPT
 from kfai.loaders.utils.types import (
+    AgentResponse,
     EmbeddingCMetadata,
     GroupedSourceData,
-    PGVectorText,
+    SourceCitation,
 )
 
 if TYPE_CHECKING:
@@ -80,6 +80,7 @@ class QueryAgent:
             collection_name=COLLECTION_TABLE,
             embeddings=self.embeddings,
         )
+        self.parser = PydanticOutputParser(pydantic_object=AgentResponse)
 
         # 2. Initialize database connection
         print(" -> Connecting to database and fetching metadata...")
@@ -88,11 +89,13 @@ class QueryAgent:
 
         # 4. Build QA Agent
         qa_prompt = PromptTemplate(
-            template=QA_PROMPT, input_variables=["input", "context", "topics"]
+            template=QA_PROMPT,
+            input_variables=["input", "context"],
+            partial_variables={
+                "format_instructions": self.parser.get_format_instructions()
+            },
         )
-        self.qa_chain = create_stuff_documents_chain(
-            llm=self.llm, prompt=qa_prompt
-        )
+        self.qa_chain = qa_prompt | self.llm | self.parser
 
         end = time.time()
         print(
@@ -102,7 +105,7 @@ class QueryAgent:
         print(f"Model: {QA_MODEL}")
 
     def _get_structured_sources(
-        self, result: str, docs: list[Document]
+        self, sources: list[SourceCitation], docs: list[Document]
     ) -> list[VideoDataSource]:
         """
         Gathers, groups, and sorts cited sources into a structured list of
@@ -111,6 +114,8 @@ class QueryAgent:
 
         # Step 1: Gather and group all cited sources by video_id
         grouped_sources: dict[str, GroupedSourceData] = {}
+        response_video_ids = [s.video_id for s in sources]
+        response_start_times = [int(s.start_time) for s in sources]
 
         for doc in docs:
             metadata: EmbeddingCMetadata = cast(
@@ -122,8 +127,8 @@ class QueryAgent:
             if (
                 video_id
                 and start_time is not None
-                and video_id in result
-                and str(int(start_time)) in result
+                and video_id in response_video_ids
+                and int(start_time) in response_start_times
             ):
                 if video_id not in grouped_sources:
                     grouped_sources[video_id] = GroupedSourceData(
@@ -185,12 +190,14 @@ class QueryAgent:
 
         return source_list
 
-    def _print_sources(self, result: str, docs: list[Document]) -> None:
-        """Prints the sources for the given result using a structured
+    def _print_sources(
+        self, sources: list[SourceCitation], docs: list[Document]
+    ) -> None:
+        """Prints the sources for the given response using a structured
         format.
         """
         print("\nSources:")
-        structured_sources = self._get_structured_sources(result, docs)
+        structured_sources = self._get_structured_sources(sources, docs)
 
         if not structured_sources:
             print("  - No direct sources cited in the response.")
@@ -222,79 +229,65 @@ class QueryAgent:
             ),
         )
 
-    def _retrieve_documents(self, query: str) -> tuple[list[Document], str]:
+    def _retrieve_documents(self, query: str) -> list[Document] | None:
         """Retrieves relevant docs from the vector store based on the query."""
-        topics, filter_dict = get_filter(query, self.show_names, self.hosts)
+        parsed_response = parse_query(query, self.show_names, self.hosts)
 
-        topic_filters: list[dict[str, str]] = []
+        if not parsed_response:
+            return None
 
-        if filter_dict:
-            for filter in filter_dict.get("$and", []):
-                or_clause = filter.get("$or", dict())
-                if or_clause:
-                    topic_filters.extend(
-                        cast(Iterable[dict[str, str]], or_clause)
-                    )
-        else:
-            return [], ""
+        filter_dict = build_filter(parsed_response)
+        topics = parsed_response.topics
 
-        assert filter_dict is not None  # For mypy
+        if not filter_dict and not topics:
+            return None
 
-        docs = []
-        topic_count = len(topic_filters)
+        if filter_dict is None:
+            filter_dict = {"$and": []}
 
-        if topic_count < 2:  # One or zero topics
-            docs = self.vector_store.similarity_search(
-                topics, k=CONTEXT_COUNT, filter=filter_dict
+        if not topics:
+            unfiltered_docs = (
+                self.vector_store.similarity_search_with_relevance_scores(
+                    query, k=CONTEXT_COUNT, filter=filter_dict
+                )
             )
         else:
-            # Get docs for each topic filter
             unfiltered_docs: list[tuple[Document, float]] = []
-            for topic_filter in topic_filters:
-                temp_filter = dict(deepcopy(filter_dict))
-                if "$and" in temp_filter:
-                    assert isinstance(temp_filter["$and"], list)
-                    for item in temp_filter["$and"]:
-                        if "$or" in item:
-                            temp_filter["$and"].remove(item)
-                            temp_filter["$and"].append(
-                                cast(
-                                    dict[str, list[PGVectorText]], topic_filter
-                                )
-                            )
-                            break
-                    unfiltered_docs.extend(
-                        self.vector_store.similarity_search_with_relevance_scores(
-                            topics, k=CONTEXT_COUNT, filter=temp_filter
-                        )
-                    )
 
-            # Sort docs by relevance score
-            unfiltered_docs.sort(key=lambda x: x[1], reverse=True)
-
-            # Deduplicate the results, limiting to CONTEXT_COUNT
-            seen_docs = set()
-            for doc, _ in unfiltered_docs:
-                doc_metadata: EmbeddingCMetadata = cast(
-                    EmbeddingCMetadata, doc.metadata
+        # Get docs for each topic filter
+        for topic in topics:
+            print(f"  Gathering docs for topic: {topic}")
+            temp_filter = dict(deepcopy(filter_dict))
+            temp_filter["$and"].append({"text": {"$ilike": f"%{topic}%"}})
+            unfiltered_docs.extend(
+                self.vector_store.similarity_search_with_relevance_scores(
+                    f"{topic}: {query}", k=CONTEXT_COUNT, filter=temp_filter
                 )
-                doc_id = (
-                    f"{doc_metadata['video_id']}-{doc_metadata['start_time']}"
-                )
-                if doc_id not in seen_docs:
-                    docs.append(doc)
-                    seen_docs.add(doc_id)
+            )
 
-                if len(seen_docs) >= CONTEXT_COUNT:
-                    break
+        # Sort docs by relevance score
+        unfiltered_docs.sort(key=lambda x: x[1], reverse=True)
+
+        # Deduplicate the results, limiting to CONTEXT_COUNT
+        docs = []
+        seen_docs = set()
+        for doc, _ in unfiltered_docs:
+            doc_metadata = cast(EmbeddingCMetadata, doc.metadata)
+            doc_id = f"{doc_metadata['video_id']}-{doc_metadata['start_time']}"
+            if doc_id not in seen_docs:
+                docs.append(doc)
+                seen_docs.add(doc_id)
+
+            if len(seen_docs) >= CONTEXT_COUNT:
+                break
 
         docs = self._sort_documents(docs)
         doc_count = len(docs)
         if doc_count == 0:
-            return [], ""
+            return None
 
         print(f"\nRetrieved {doc_count} docs - [upper limit: {CONTEXT_COUNT}]")
-        return docs, topics
+        return docs
 
     def _format_documents_for_context(
         self, docs: list[Document]
@@ -319,32 +312,17 @@ class QueryAgent:
         return docs_with_metadata
 
     def _generate_response(
-        self, query: str, context_docs: list[Document], topics: str
-    ) -> str:
+        self, query: str, context_docs: list[Document]
+    ) -> AgentResponse:
         """Invokes the LLM chain to generate a response."""
         print("Thinking...")
-        response = self.qa_chain.invoke(
+        response: AgentResponse = self.qa_chain.invoke(
             {
                 "input": query,
-                "topics": topics,
                 "context": context_docs,
             }
         )
-        return clean_llm_response(response)
-
-    def _present_results(
-        self, result: str, docs: list[Document], start: float
-    ) -> None:
-        """Prints the final answer and its sources."""
-        if result:
-            print("\nAnswer:")
-            print(result)
-            self._print_sources(result, docs)
-        else:
-            print("  !!  WARNING: No result.")
-
-        end = time.time()
-        print(f"\n...response took {format_duration(end - start)}.")
+        return response
 
     def process_query(self, query: str, is_gui: bool = False) -> str | None:
         """Processes a single user query from retrieval to final output.
@@ -366,7 +344,7 @@ class QueryAgent:
 
         start = time.time()
 
-        docs, topics = self._retrieve_documents(query)
+        docs = self._retrieve_documents(query)
 
         if not docs and is_gui:
             return (
@@ -381,15 +359,14 @@ class QueryAgent:
 
         docs_with_metadata = self._format_documents_for_context(docs)
 
-        result = self._generate_response(query, docs_with_metadata, topics)
-
-        if not result and is_gui:
-            return "The model did not generate a response. Please try again."
+        response = self._generate_response(query, docs_with_metadata)
 
         if is_gui:
-            final_response = self._format_response_for_gui(result, docs)
+            final_response = self._format_response_for_gui(response, docs)
         else:
-            self._present_results(result, docs, start)
+            print("\nAnswer:")
+            print(response.query_response)
+            self._print_sources(response.sources, docs)
 
         end = time.time()
         print(f"\n...response took {format_duration(end - start)}.")
@@ -397,14 +374,16 @@ class QueryAgent:
         return final_response if is_gui else None
 
     def _format_response_for_gui(
-        self, result: str, docs: list[Document]
+        self, response: AgentResponse, docs: list[Document]
     ) -> str:
         """Formats the final result and sources into a single Markdown
         string.
         """
-        structured_sources = self._get_structured_sources(result, docs)
+        structured_sources = self._get_structured_sources(
+            response.sources, docs
+        )
 
-        response_parts = [result]
+        response_parts = [response.query_response]
 
         if structured_sources:
             response_parts.append("\n\n---\n**Sources:**")
