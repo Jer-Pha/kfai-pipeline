@@ -2,7 +2,7 @@ import gradio as gr
 from langchain_ollama import OllamaLLM
 
 from kfai.loaders.agents.query_agent import QueryAgent
-from kfai.loaders.utils.config import QA_MODEL
+from kfai.loaders.utils.config import QA_MODEL, STYLE_CSS_FILE
 
 
 def run() -> None:
@@ -52,16 +52,13 @@ def run() -> None:
             ),
             (
                 "What did Blessing and Tim say about Rocket League on Kinda"
-                " Funny Games Daily?"
+                " Funny Games Daily or the Gamescast?"
             ),
-            (
-                "In 2025, what comparisons did Blessing make between Rocket"
-                " League and Rematch?"
-            ),
+            'Describe Nick\'s "three finger scale".',
         ],
         cache_examples=False,
+        css_paths=[STYLE_CSS_FILE],
     )
 
     # Launch the web server.
-    # share=False ensures it's only accessible on your local machine.
     web_app.launch(share=False)
