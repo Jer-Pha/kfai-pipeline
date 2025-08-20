@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.extractors import transcribe_failures
 
 

@@ -1,6 +1,5 @@
 import pytest
 
-# The module we are testing
 from kfai.loaders.utils import filtering as filtering_utils
 from kfai.loaders.utils.helpers.datetime import iso_string_to_epoch
 from kfai.loaders.utils.types import QueryParseResponse

@@ -1,6 +1,5 @@
 import pytest
 
-# The module we are testing
 from kfai.loaders.utils.helpers import datetime as datetime_utils
 
 # --- Tests for iso_string_to_epoch ---
@@ -13,7 +12,7 @@ from kfai.loaders.utils.helpers import datetime as datetime_utils
         ("2012-01-01T00:00:00", 1325376000),
         # Case 2: A more recent date
         ("2024-07-23T12:30:00", 1721737800),
-        # Case 3: A date with timezone information (CORRECTED)
+        # Case 3: A date with timezone information
         ("2024-07-23T12:30:00+05:00", 1721719800),
         # Edge Case 4: Empty string input
         ("", 0),

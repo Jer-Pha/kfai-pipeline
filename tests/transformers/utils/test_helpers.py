@@ -3,7 +3,6 @@ from unittest.mock import ANY, MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.transformers.utils import helpers as helpers_utils
 
 # --- Tests for load_raw_data ---
@@ -163,9 +162,7 @@ def test_save_cleaned_data_handles_exception(mocker):
             "Text with\u200bzero\u200bwidth\xa0space",
             "Text withzerowidth space",
         ),
-        # CORRECTED: The extra space is correctly removed by the whitespace sub
         ("Text with >> arrows", "Text with arrows"),
-        # CORRECTED: The extra space is correctly removed by the whitespace sub
         ("Text [with bracket tags] and content", "Text and content"),
         ("Text with   multiple   spaces", "Text with multiple spaces"),
     ],

@@ -2,15 +2,14 @@ from unittest.mock import ANY, MagicMock, call
 
 import pytest
 
-# The module we are testing
 from kfai.transformers.utils import cleaning as cleaning_utils
 
 
-# --- Corrected Fixture ---
+# --- Fixture ---
 @pytest.fixture
 def mock_deps(mocker):
     """A fixture to mock all external dependencies of clean_transcript."""
-    # --- KEY CHANGE: Mock the logger object directly ---
+    # Mock the logger object directly
     mock_logger = mocker.patch("kfai.transformers.utils.cleaning.logger")
 
     # Mock helper functions
@@ -110,7 +109,6 @@ def test_clean_transcript_llm_call_failure(mock_deps):
     # 3. Assert
     assert result is None
 
-    # --- CORRECTED ASSERTIONS ---
     # Verify that error was logged twice
     assert mock_deps["logger"].error.call_count == 2
 
@@ -145,7 +143,6 @@ def test_clean_transcript_general_failure(mock_deps):
     # 3. Assert
     assert result is None
 
-    # --- CORRECTED ASSERTIONS ---
     # Verify that error was logged twice
     assert mock_deps["logger"].error.call_count == 2
 

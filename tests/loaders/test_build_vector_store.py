@@ -1,7 +1,6 @@
 import json
 from unittest.mock import MagicMock
 
-# The module we are testing
 from kfai.loaders import build_vector_store
 
 # --- Test Data ---

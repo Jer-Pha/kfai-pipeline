@@ -1,6 +1,5 @@
 import pytest
 
-# The module we are testing
 from kfai.extractors import process_failed_videos
 
 # --- Comprehensive Fixture for Mocking Dependencies ---
@@ -117,9 +116,6 @@ def test_run_handles_youtube_api_error(mocker, mock_dependencies):
     Tests that if the YouTube API fails (returns None), the script
     does not write an output file.
     """
-    # --- FIX: Add mock for the initial file read ---
-    # We need to mock this even if it's not the focus of the test,
-    # because this code runs before the part we are testing.
     mocker.patch.object(
         mock_dependencies["skip_file_path"],
         "open",

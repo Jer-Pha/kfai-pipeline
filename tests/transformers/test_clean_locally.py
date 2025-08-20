@@ -2,11 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.transformers import clean_locally
 
 
-# --- Final Corrected Fixture ---
+# --- Final Fixture ---
 @pytest.fixture
 def mock_deps(mocker):
     """A single fixture to mock all external dependencies of the run script."""
@@ -20,7 +19,7 @@ def mock_deps(mocker):
     )
     mock_logs_dir = mocker.patch("kfai.transformers.clean_locally.LOGS_DIR")
 
-    # --- KEY CHANGE: Corrected function names to match imports ---
+    # Function names match imports
     mocks = {
         "load_raw_data": mocker.patch(
             "kfai.transformers.clean_locally.load_raw_data"
@@ -49,7 +48,7 @@ SAMPLE_VIDEO_DATA = {
     "transcript_chunks": [{"text": "raw"}],
 }
 
-# --- Final Corrected Test Suite ---
+# --- Test Suite ---
 
 
 def test_run_happy_path(mock_deps):

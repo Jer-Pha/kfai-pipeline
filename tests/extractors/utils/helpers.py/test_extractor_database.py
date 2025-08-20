@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.extractors.utils.helpers import database as db_utils
 
 # --- Tests for create_local_sqlite_db (the wrapper function) ---
@@ -90,7 +89,7 @@ def test_get_video_db_data_fetches_all(mock_sqlite_connect):
 def test_get_video_db_data_fetches_specific_ids(mock_sqlite_connect):
     """Tests fetching data for a specific list of video IDs."""
     # 1. Arrange
-    mock_conn, mock_cursor = mock_sqlite_connect
+    _, mock_cursor = mock_sqlite_connect
     mock_cursor.fetchall.return_value = [(1, "vid1", "Show A", "Host1")]
 
     # 2. Act
@@ -108,7 +107,7 @@ def test_get_video_db_data_fetches_specific_ids(mock_sqlite_connect):
 def test_get_video_db_data_handles_null_hosts(mock_sqlite_connect):
     """Tests that a NULL value for hosts is correctly handled."""
     # 1. Arrange
-    mock_conn, mock_cursor = mock_sqlite_connect
+    _, mock_cursor = mock_sqlite_connect
     # Simulate a row where the GROUP_CONCAT result is None
     mock_cursor.fetchall.return_value = [(1, "vid1", "Show A", None)]
 
@@ -156,9 +155,7 @@ def mock_db_connections(mocker):
 def test_export_mysql_to_sqlite_happy_path(mock_db_connections):
     """Tests the successful export from MySQL to SQLite."""
     # 1. Arrange
-    mock_mysql_conn, mysql_cursor, sqlite_conn, sqlite_cursor = (
-        mock_db_connections
-    )
+    mock_mysql_conn, _, sqlite_conn, sqlite_cursor = mock_db_connections
 
     # 2. Act
     db_utils._export_mysql_to_sqlite(

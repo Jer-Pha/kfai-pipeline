@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.extractors.utils.helpers import transcript as transcript_utils
 
 # --- Tests for get_raw_transcript_data ---
@@ -139,7 +138,7 @@ def test_chunk_transcript_with_overlap():
     )
 
     # Assert
-    # The number of chunks can vary, so we test for a reasonable number
+    # The number of chunks can vary, so test for a reasonable number
     assert len(chunks) > 1
     # The first chunk must start at the beginning
     assert chunks[0]["start"] == 0.0

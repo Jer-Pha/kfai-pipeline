@@ -3,10 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# The module we are testing
 from kfai.extractors import fetch_raw_data
 
-# --- Corrected Comprehensive Fixture ---
+# --- Comprehensive Fixture ---
 
 
 @pytest.fixture
@@ -46,7 +45,7 @@ def mock_dependencies(mocker):
     return mocks
 
 
-# --- Corrected Test Suite ---
+# --- Test Suite ---
 
 
 def test_run_happy_path(mocker, mock_dependencies):
@@ -89,7 +88,6 @@ def test_run_happy_path(mocker, mock_dependencies):
     }
     mock_dependencies["process_video"].assert_called_once_with(expected_record)
 
-    # --- CORRECTED ASSERTION ---
     # Get the mock file handle
     handle = mock_file_open()
     # Join all the calls to write() into a single string

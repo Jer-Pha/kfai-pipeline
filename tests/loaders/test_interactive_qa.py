@@ -1,6 +1,5 @@
 import pytest
 
-# The module we are testing
 from kfai.loaders import interactive_qa
 
 # --- Fixture for Mocking Dependencies ---
