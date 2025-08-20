@@ -2,7 +2,7 @@ from os import getenv
 
 from dotenv import load_dotenv
 
-from kfai.core.paths import RAW_JSON_DIR
+from kfai.core.paths import ASSETS_DIR, RAW_JSON_DIR
 
 # from kfai.core.paths import CLEANED_JSON_DIR
 
@@ -20,3 +20,4 @@ PARSING_MODEL = "qwen3:14b-q4_K_M"
 QA_MODEL = "qwen3:14b-q4_K_M"
 
 JSON_SOURCE_DIR = RAW_JSON_DIR  # Change to CLEANED_JSON_DIR later
+STYLE_CSS_FILE = ASSETS_DIR / "style.css"
