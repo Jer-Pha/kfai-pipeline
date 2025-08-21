@@ -12,7 +12,6 @@ if TYPE_CHECKING:
         PGVectorHosts,
         PGVectorPublishedAt,
         PGVectorShowName,
-        PGVectorText,
     )
 
 
@@ -25,7 +24,8 @@ def build_filter(
             PGVectorShowName
             | PGVectorHosts
             | PGVectorPublishedAt
-            | PGVectorText
+            | dict[str, dict[str, str]]
+            | dict[str, list[dict[str, dict[str, str]]]]
         ],
     ]
     | None
@@ -33,7 +33,11 @@ def build_filter(
     """Convert to filter for PGVector retriever"""
     print("  -> Building filter...")
     filter_conditions: list[
-        PGVectorShowName | PGVectorHosts | PGVectorPublishedAt | PGVectorText
+        PGVectorShowName
+        | PGVectorHosts
+        | PGVectorPublishedAt
+        | dict[str, dict[str, str]]
+        | dict[str, list[dict[str, dict[str, str]]]]
     ] = []
 
     if parsed_response.exact_year:

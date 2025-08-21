@@ -14,6 +14,7 @@ COLLECTION_NAME = "video_transcript_chunks"
 BATCH_SIZE = 256
 COLLECTION_TABLE = "video_transcript_chunks"
 CONTEXT_COUNT = 120
+TIMESTAMP_BUFFER = 10
 
 EMBEDDING_MODEL = "mixedbread-ai/mxbai-embed-large-v1"
 PARSING_MODEL = "qwen3:14b-q4_K_M"
