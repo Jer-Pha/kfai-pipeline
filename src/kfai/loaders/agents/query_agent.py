@@ -18,6 +18,7 @@ from kfai.loaders.utils.config import (
     EMBEDDING_MODEL,
     POSTGRES_DB_PATH,
     QA_MODEL,
+    TIMESTAMP_BUFFER,
 )
 from kfai.loaders.utils.filtering import build_filter
 from kfai.loaders.utils.helpers.database import get_unique_metadata
@@ -166,13 +167,14 @@ class QueryAgent:
                 else:
                     formatted_time = f"{minutes}:{seconds:02d}"
 
+                timestamp_sec = total_seconds + TIMESTAMP_BUFFER
                 timestamps.append(
                     {
-                        "timestamp_sec": total_seconds,
+                        "timestamp_sec": timestamp_sec,
                         "formatted_time": formatted_time,
                         "timestamp_href": (
                             "https://www.youtube.com/"
-                            f"watch?v={video_id}&t={total_seconds}s"
+                            f"watch?v={video_id}&t={timestamp_sec}s"
                         ),
                     }
                 )
@@ -258,10 +260,24 @@ class QueryAgent:
         for topic in topics:
             print(f"  Gathering docs for topic: {topic}")
             temp_filter = dict(deepcopy(filter_dict))
-            temp_filter["$and"].append({"text": {"$ilike": f"%{topic}%"}})
+
+            # Include title in topic search
+            hybrid_topic_filter = {
+                "$or": [
+                    {"title": {"$ilike": f"%{topic}%"}},
+                    {"text": {"$ilike": f"%{topic}%"}},
+                ]
+            }
+            temp_filter["$and"].append(hybrid_topic_filter)
+
+            # Build relevant query
+            temp_topics = topics.copy()
+            temp_topics.remove(topic)
+            temp_query = ", ".join(temp_topics) if temp_topics else query
+
             unfiltered_docs.extend(
                 self.vector_store.similarity_search_with_relevance_scores(
-                    f"{topic}: {query}", k=CONTEXT_COUNT, filter=temp_filter
+                    temp_query, k=CONTEXT_COUNT, filter=temp_filter
                 )
             )
 

@@ -276,7 +276,16 @@ def test_retrieve_documents_no_filter_dict(mocker, mocked_agent):
     call_kwargs = mocked_agent.vector_store.similarity_search_with_relevance_scores.call_args.kwargs  # noqa: E501
 
     # Verify the filter was constructed correctly from an empty base
-    expected_filter = {"$and": [{"text": {"$ilike": "%topic1%"}}]}
+    expected_filter = {
+        "$and": [
+            {
+                "$or": [
+                    {"title": {"$ilike": "%topic1%"}},
+                    {"text": {"$ilike": "%topic1%"}},
+                ]
+            }
+        ]
+    }
     assert "filter" in call_kwargs
     assert call_kwargs["filter"] == expected_filter
 
