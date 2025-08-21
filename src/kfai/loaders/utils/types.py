@@ -3,10 +3,6 @@ from typing import TypedDict
 from pydantic import BaseModel, Field
 
 
-class PGVectorText(TypedDict):
-    text: dict[str, str]
-
-
 class PGVectorShowName(TypedDict):
     show_name: dict[str, list[str]]
 
