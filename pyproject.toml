@@ -22,7 +22,7 @@ packages = [
 
 [tool.poetry.dependencies]
 google-api-python-client = "^2.179.0"
-gradio = "^5.42.0"
+gradio = "^6.7.0"
 isodate = "^0.7.2"
 langchain = "^0.3.27"
 langchain-core = "^0.3.81"
