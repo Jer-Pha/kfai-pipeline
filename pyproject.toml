@@ -50,7 +50,7 @@ url = "https://download.pytorch.org/whl/cu129"
 priority = "explicit"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
+pytest = "^9.0.3"
 pytest-cov = "^6.2.1"
 pytest-mock = "^3.14.1"
 mypy = "^1.17.1"
