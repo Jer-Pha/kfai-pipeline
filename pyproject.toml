@@ -34,7 +34,7 @@ openai-whisper = "^20250625"
 psycopg-binary = "^3.2.9"
 psycopg2-binary = "^2.9.10"
 pydantic = "^2.11.7"
-python-dotenv = "^1.1.1"
+python-dotenv = "^1.2.2"
 sentence-transformers = "^5.1.0"
 sqlalchemy = "^2.0.43"
 torch = {version = "^2.8.0", source = "pytorch_cu129"}
